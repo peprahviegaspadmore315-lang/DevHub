@@ -1,0 +1,245 @@
+.evaluator {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  font-family: system-ui, -apple-system, sans-serif;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.evaluator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.evaluator-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #1f2937;
+}
+
+.evaluator-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.evaluator-close:hover {
+  color: #6b7280;
+}
+
+.evaluator-question {
+  padding: 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.evaluator-question strong {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.evaluator-question p {
+  margin: 0;
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+.evaluator-input {
+  padding: 16px;
+}
+
+.evaluator-input label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.evaluator-input textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.evaluator-input textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.evaluator-error {
+  margin: 0 16px 16px;
+  padding: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 14px;
+}
+
+.evaluator-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 32px);
+  margin: 0 16px 16px;
+  padding: 12px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.evaluator-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.evaluator-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.evaluator-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: evaluator-spin 0.8s linear infinite;
+}
+
+@keyframes evaluator-spin {
+  to { transform: rotate(360deg); }
+}
+
+.evaluator-result {
+  padding: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.evaluator-score {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.evaluator-score-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--score-color) calc(var(--score, 0) * 3.6deg),
+    #e5e7eb 0
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.evaluator-score-circle::before {
+  content: '';
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  background: white;
+  border-radius: 50%;
+}
+
+.evaluator-score-value {
+  position: relative;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--score-color);
+}
+
+.evaluator-score-label {
+  position: relative;
+  font-size: 10px;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.evaluator-feedback {
+  margin-bottom: 16px;
+}
+
+.evaluator-feedback strong {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.evaluator-feedback p {
+  margin: 0;
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+.evaluator-section {
+  margin-bottom: 12px;
+}
+
+.evaluator-section strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.evaluator-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.evaluator-section li {
+  font-size: 13px;
+  color: #4b5563;
+  margin-bottom: 4px;
+}
+
+.evaluator-strengths strong {
+  color: #059669;
+}
+
+.evaluator-weaknesses strong {
+  color: #d97706;
+}
+
+.evaluator-suggestions strong {
+  color: #2563eb;
+}
+
+.evaluator-model {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: right;
+}
