@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Motion design system */
+@import './styles/motion.css';
+
 /* Micro-interactions - Apple-style */
 @import './styles/micro-interactions.css';
 
