@@ -204,8 +204,8 @@ const LessonPage = () => {
                 </button>
               </div>
               <TryItYourself 
-                initialCode={lesson.codeExample} 
-                language="html"
+                defaultCode={lesson.codeExample} 
+                defaultLanguage="html"
                 height="500px"
               />
             </div>
