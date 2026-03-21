@@ -15,6 +15,7 @@ const STATE_CONFIG = {
   thinking: { emoji: '🤔', label: 'Thinking...', gradient: 'from-indigo-500 to-purple-600' },
   confused: { emoji: '😕', label: 'Hmm...', gradient: 'from-red-400 to-pink-500' },
   celebrating: { emoji: '🏆', label: 'Amazing!', gradient: 'from-yellow-400 to-yellow-500' },
+  evaluating: { emoji: '📝', label: 'Checking...', gradient: 'from-violet-500 to-purple-600' },
 };
 
 const SIZE_CLASSES = {

@@ -5,7 +5,8 @@ export type RobotState =
   | 'excited' 
   | 'thinking' 
   | 'confused' 
-  | 'celebrating';
+  | 'celebrating'
+  | 'evaluating';
 
 export type RobotEvent = 
   | 'TYPING_START'
@@ -18,6 +19,9 @@ export type RobotEvent =
   | 'QUIZ_CORRECT'
   | 'QUIZ_WRONG'
   | 'QUIZ_COMPLETE'
+  | 'EVALUATION_START'
+  | 'EVALUATION_GOOD'
+  | 'EVALUATION_BAD'
   | 'ERROR'
   | 'IDLE'
   | 'THINKING';

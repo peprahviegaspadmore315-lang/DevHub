@@ -34,14 +34,6 @@ export const RobotProvider = ({ children }: RobotProviderProps) => {
 
   const { isSpeaking, speak, stop, pause, resume } = useSpeechSynthesis(handleStateChange);
 
-  useEffect(() => {
-    return () => {
-      if (autoResetTimeoutRef.current) {
-        clearTimeout(autoResetTimeoutRef.current);
-      }
-    };
-  }, []);
-
   const dispatch = useCallback((event: RobotEvent, payload?: unknown) => {
     const nextState = getNextState(event);
     
@@ -61,6 +53,31 @@ export const RobotProvider = ({ children }: RobotProviderProps) => {
         setState('celebrating');
         speak('Congratulations! You completed the quiz!');
         break;
+      case 'EVALUATION_START':
+        setState('thinking');
+        speak('Let me check your answer...');
+        break;
+      case 'EVALUATION_GOOD':
+        if (typeof payload === 'object' && payload !== null) {
+          const evalPayload = payload as { score: number; feedback: string };
+          if (evalPayload.score >= 80) {
+            setState('excited');
+            speak(`Great job! You scored ${evalPayload.score} out of 100! ${evalPayload.feedback}`);
+          } else if (evalPayload.score >= 60) {
+            setState('speaking');
+            speak(`Good effort! You scored ${evalPayload.score}. ${evalPayload.feedback}`);
+          } else {
+            setState('thinking');
+            speak(`Let's review this together. You scored ${evalPayload.score}. ${evalPayload.feedback}`);
+          }
+        }
+        break;
+      case 'EVALUATION_BAD':
+        setState('thinking');
+        if (typeof payload === 'string') {
+          speak(`No worries! Let's work on this together. ${payload}`);
+        }
+        break;
       case 'TYPING_START':
       case 'THINKING':
         setState('thinking');
@@ -74,6 +91,13 @@ export const RobotProvider = ({ children }: RobotProviderProps) => {
         setState(nextState);
     }
   }, [getNextState, speak, state]);
+
+  useEffect(() => {
+    (window as any).__robot = { dispatch, speak };
+    return () => {
+      delete (window as any).__robot;
+    };
+  }, [dispatch, speak]);
 
   const speakText = useCallback(async (text: string, options?: SpeakOptions) => {
     await speak(text, options);
