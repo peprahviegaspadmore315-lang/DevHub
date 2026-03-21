@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/api\/?$/, '');
+import { apiRequest, getApiUrl } from './api-client';
 
 export interface AnswerEvaluationRequest {
   question: string;
@@ -21,28 +21,15 @@ export interface AnswerEvaluationResponse {
 }
 
 class EvaluationService {
-  private getHeaders(): HeadersInit {
-    const token = localStorage.getItem('accessToken');
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    };
-  }
-
   async evaluate(request: AnswerEvaluationRequest): Promise<AnswerEvaluationResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai/evaluate`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify(request),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(error.error || `HTTP ${response.status}`);
-      }
-
-      return await response.json();
+      return await apiRequest<AnswerEvaluationResponse>(
+        getApiUrl('/api/ai/evaluate'),
+        {
+          method: 'POST',
+          body: JSON.stringify(request),
+        }
+      );
     } catch (error) {
       console.error('Evaluation error:', error);
       return {
@@ -57,16 +44,7 @@ class EvaluationService {
 
   async getStatus(): Promise<{ enabled: boolean; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai/status`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return await response.json();
+      return await apiRequest(getApiUrl('/api/ai/status'));
     } catch (error) {
       console.error('Status check failed:', error);
       return { enabled: false, message: 'Service unavailable' };

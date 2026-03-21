@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/api\/?$/, '');
+import { apiRequest, getApiUrl } from './api-client';
 
 export interface CodeExecutionRequest {
   code: string;
@@ -19,15 +19,6 @@ export interface CodeExecutionResponse {
   securityWarnings?: SecurityWarning[];
 }
 
-export interface EvaluationResponse {
-  execution: CodeExecutionResponse;
-  correct: boolean;
-  feedback: string;
-  score: number;
-  suggestions: string[];
-  hints: string[];
-}
-
 export interface LanguageInfo {
   id: string;
   name: string;
@@ -44,31 +35,15 @@ export interface SecurityWarning {
 export type SupportedLanguage = 'JAVASCRIPT' | 'PYTHON' | 'JAVA' | 'HTML' | 'CSS';
 
 class CodeExecutionService {
-  private getHeaders(): HeadersInit {
-    const token = localStorage.getItem('accessToken');
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    };
-  }
-
   async execute(request: CodeExecutionRequest): Promise<CodeExecutionResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/code/run`, {
+      return await apiRequest<CodeExecutionResponse>(getApiUrl('/api/code/run'), {
         method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify({
           code: request.code,
           language: request.language,
         }),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || `HTTP ${response.status}`);
-      }
-
-      return await response.json();
     } catch (error) {
       console.error('Code execution error:', error);
       return {
@@ -83,56 +58,9 @@ class CodeExecutionService {
     }
   }
 
-  async evaluate(request: CodeExecutionRequest & { question: string }): Promise<EvaluationResponse> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/code/run`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify({
-          code: request.code,
-          language: request.language,
-          question: request.question,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Code evaluation error:', error);
-      return {
-        execution: {
-          success: false,
-          output: '',
-          error: error instanceof Error ? error.message : 'Evaluation failed',
-          executionTimeMs: 0,
-          exitCode: -1,
-          language: request.language,
-          timestamp: new Date().toISOString(),
-        },
-        correct: false,
-        feedback: 'An error occurred during evaluation.',
-        score: 0,
-        suggestions: [],
-        hints: [],
-      };
-    }
-  }
-
   async getLanguages(): Promise<LanguageInfo[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/code/languages`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return await response.json();
+      return await apiRequest<LanguageInfo[]>(getApiUrl('/api/code/languages'));
     } catch (error) {
       console.error('Failed to fetch languages:', error);
       return [];
@@ -141,16 +69,7 @@ class CodeExecutionService {
 
   async healthCheck(): Promise<{ status: string; supportedLanguages: number }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/code/status`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return await response.json();
+      return await apiRequest(getApiUrl('/api/code/status'));
     } catch (error) {
       console.error('Health check failed:', error);
       return { status: 'unhealthy', supportedLanguages: 0 };

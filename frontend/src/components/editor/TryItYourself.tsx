@@ -1,21 +1,22 @@
 import { useState, useRef, useCallback } from 'react'
 import Editor from '@monaco-editor/react'
+import { codeExecutionService, type SupportedLanguage } from '@/services/codeExecutionService'
 import './TryItYourself.css'
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/api\/?$/, '')
 
 interface TryItYourselfProps {
   defaultLanguage?: string
   defaultCode?: string
   height?: string
+  onSuccess?: (output: string) => void
+  onError?: (error: string) => void
 }
 
 const LANGUAGES = [
-  { id: 'javascript', name: 'JavaScript', extension: 'js', monaco: 'javascript' },
-  { id: 'python', name: 'Python', extension: 'py', monaco: 'python' },
-  { id: 'java', name: 'Java', extension: 'java', monaco: 'java' },
-  { id: 'html', name: 'HTML', extension: 'html', monaco: 'html' },
-  { id: 'css', name: 'CSS', extension: 'css', monaco: 'css' },
+  { id: 'javascript', name: 'JavaScript', extension: 'js', monaco: 'javascript', apiLang: 'JAVASCRIPT' as SupportedLanguage },
+  { id: 'python', name: 'Python', extension: 'py', monaco: 'python', apiLang: 'PYTHON' as SupportedLanguage },
+  { id: 'java', name: 'Java', extension: 'java', monaco: 'java', apiLang: 'JAVA' as SupportedLanguage },
+  { id: 'html', name: 'HTML', extension: 'html', monaco: 'html', apiLang: 'HTML' as SupportedLanguage },
+  { id: 'css', name: 'CSS', extension: 'css', monaco: 'css', apiLang: 'CSS' as SupportedLanguage },
 ]
 
 const DEFAULT_CODE: Record<string, string> = {
@@ -64,10 +65,19 @@ h1 {
 `,
 }
 
+function speak(text: string) {
+  const robot = (window as any).__robot
+  if (robot?.speak) {
+    robot.speak(text)
+  }
+}
+
 export default function TryItYourself({
   defaultLanguage = 'javascript',
   defaultCode,
-  height = '400px'
+  height = '400px',
+  onSuccess,
+  onError
 }: TryItYourselfProps) {
   const [language, setLanguage] = useState(defaultLanguage)
   const [code, setCode] = useState(defaultCode || DEFAULT_CODE[defaultLanguage] || '')
@@ -88,32 +98,37 @@ export default function TryItYourself({
     try {
       if (language === 'html' || language === 'css') {
         setShowPreview(true)
+        speak('HTML preview ready!')
         setLoading(false)
         return
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/code/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code,
-          language: language.toUpperCase(),
-        }),
+      const result = await codeExecutionService.execute({
+        code,
+        language: langConfig.apiLang,
+        runTests: false,
       })
 
-      const data = await response.json()
-
-      if (data.success) {
-        setOutput(data.output || '(no output)')
+      if (result.success) {
+        setOutput(result.output || '(no output)')
+        onSuccess?.(result.output)
+        if (result.output) {
+          speak('Code executed successfully!')
+        }
       } else {
-        setError(data.error || 'Execution failed')
+        setError(result.error || 'Execution failed')
+        onError?.(result.error || 'Execution failed')
+        speak('There was an error running your code.')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect to server')
+      const errorMsg = err instanceof Error ? err.message : 'Failed to connect to server'
+      setError(errorMsg)
+      onError?.(errorMsg)
+      speak('Could not connect to the server.')
     } finally {
       setLoading(false)
     }
-  }, [code, language])
+  }, [code, language, langConfig.apiLang, onSuccess, onError])
 
   const resetCode = () => {
     setCode(DEFAULT_CODE[language])
