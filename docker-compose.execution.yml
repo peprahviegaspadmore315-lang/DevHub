@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  executor-python:
+    build:
+      context: ./executor/python
+      dockerfile: Dockerfile
+    image: learning-platform/executor:python
+    container_name: executor-python
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    environment:
+      - MAX_OUTPUT_SIZE=65536
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=10M,exec
+    mem_limit: 256m
+    cpus: 0.5
+    networks:
+      - execution-network
+    restart: unless-stopped
+
+  executor-node:
+    build:
+      context: ./executor/node
+      dockerfile: Dockerfile
+    image: learning-platform/executor:node
+    container_name: executor-node
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    environment:
+      - MAX_OUTPUT_SIZE=65536
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=10M,exec
+    mem_limit: 256m
+    cpus: 0.5
+    networks:
+      - execution-network
+    restart: unless-stopped
+
+  executor-java:
+    build:
+      context: ./executor/java
+      dockerfile: Dockerfile
+    image: learning-platform/executor:java
+    container_name: executor-java
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    environment:
+      - MAX_OUTPUT_SIZE=65536
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=10M,exec
+    mem_limit: 512m
+    cpus: 0.5
+    networks:
+      - execution-network
+    restart: unless-stopped
+
+networks:
+  execution-network:
+    driver: bridge
+    internal: true

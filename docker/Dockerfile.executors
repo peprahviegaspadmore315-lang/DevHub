@@ -1,0 +1,62 @@
+# Base Dockerfile for secure code execution
+# This creates optimized images for each language
+
+# ============================================
+# PYTHON EXECUTOR
+# ============================================
+FROM python:3.11-slim as python-executor
+
+# Remove unnecessary packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -r executor && useradd -r -m -g executor executor
+
+# Set working directory
+WORKDIR /app
+
+# Copy a wrapper script
+COPY python-wrapper.sh /usr/local/bin/run
+RUN chmod +x /usr/local/bin/run
+
+# Switch to non-root user
+USER executor
+
+ENTRYPOINT ["/usr/local/bin/run"]
+
+# ============================================
+# NODE.JS EXECUTOR  
+# ============================================
+FROM node:20-alpine as node-executor
+
+# Create non-root user
+RUN addgroup -S executor && adduser -S executor -G executor
+
+# Set working directory
+WORKDIR /app
+
+# Copy wrapper script
+COPY node-wrapper.sh /usr/local/bin/run
+RUN chmod +x /usr/local/bin/run
+
+USER executor
+
+ENTRYPOINT ["/usr/local/bin/run"]
+
+# ============================================
+# JAVA EXECUTOR
+# ============================================
+FROM eclipse-temurin:17-jre-alpine as java-executor
+
+# Create non-root user
+RUN addgroup -S executor && adduser -S executor -G executor
+
+WORKDIR /app
+
+COPY java-wrapper.sh /usr/local/bin/run
+RUN chmod +x /usr/local/bin/run
+
+USER executor
+
+ENTRYPOINT ["/usr/local/bin/run"]

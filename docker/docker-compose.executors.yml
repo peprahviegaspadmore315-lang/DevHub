@@ -1,0 +1,49 @@
+# Docker Compose for Code Execution Service
+# Secure, isolated code execution environment
+
+version: '3.8'
+
+services:
+  # Python Executor Image
+  python-executor:
+    build:
+      context: .
+      dockerfile: Dockerfile.executors
+      target: python-executor
+    image: learncode/python-executor:latest
+    profiles:
+      - build-only
+
+  # Node.js Executor Image
+  node-executor:
+    build:
+      context: .
+      dockerfile: Dockerfile.executors
+      target: node-executor
+    image: learncode/node-executor:latest
+    profiles:
+      - build-only
+
+  # Java Executor Image
+  java-executor:
+    build:
+      context: .
+      dockerfile: Dockerfile.executors
+      target: java-executor
+    image: learncode/java-executor:latest
+    profiles:
+      - build-only
+
+  # Build all executor images
+  build-all:
+    image: alpine:latest
+    profiles:
+      - build-only
+    command: echo "Use docker buildx to build multi-platform images"
+
+networks:
+  code-execution:
+    driver: bridge
+
+volumes:
+  executor-workspace:

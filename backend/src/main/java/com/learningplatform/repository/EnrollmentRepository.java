@@ -1,0 +1,29 @@
+package com.learningplatform.repository;
+
+import com.learningplatform.model.entity.Enrollment;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
+    
+    List<Enrollment> findByUserId(Long userId);
+    
+    List<Enrollment> findByCourseId(Long courseId);
+    
+    Optional<Enrollment> findByUserIdAndCourseId(Long userId, Long courseId);
+    
+    boolean existsByUserIdAndCourseId(Long userId, Long courseId);
+    
+    Long countByCourseId(Long courseId);
+    
+    Long countByUserId(Long userId);
+    
+    @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.user.id = :userId AND e.completionPercentage >= :percentage")
+    int countByUserIdAndCompletionPercentage(@Param("userId") Long userId, @Param("percentage") Double percentage);
+}

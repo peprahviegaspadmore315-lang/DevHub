@@ -1,0 +1,37 @@
+.robot {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+}
+
+.sprite {
+  width: 120px;
+  height: 120px;
+  background: url("../assets/robot-sprite.png") no-repeat;
+  animation: idle 1s steps(4) infinite;
+}
+
+/* Different states */
+.robot.speaking .sprite {
+  animation: speak 0.5s steps(4) infinite;
+}
+
+.robot.excited .sprite {
+  animation: jump 0.6s steps(6) infinite;
+}
+
+/* Keyframes */
+@keyframes idle {
+  from { background-position: 0px; }
+  to { background-position: -480px; }
+}
+
+@keyframes speak {
+  from { background-position: 0px -120px; }
+  to { background-position: -480px -120px; }
+}
+
+@keyframes jump {
+  from { background-position: 0px -240px; }
+  to { background-position: -720px -240px; }
+}
