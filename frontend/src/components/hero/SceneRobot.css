@@ -1,0 +1,372 @@
+.scene-robot {
+  position: absolute;
+  z-index: 50;
+  cursor: pointer;
+  user-select: none;
+  pointer-events: auto;
+  animation: robot-float 4s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+.scene-robot:hover {
+  transform: scale(1.05);
+}
+
+/* Floating animation */
+@keyframes robot-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Breathing animation (subtle scale) */
+@keyframes robot-breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+/* Glow effects */
+.scene-robot-glow {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  filter: blur(30px);
+  opacity: 0.3;
+  transition: opacity 0.5s ease;
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.scene-robot-glow--idle {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, transparent 70%);
+}
+
+.scene-robot-glow--thinking {
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.5) 0%, transparent 70%);
+  opacity: 0.6;
+}
+
+.scene-robot-glow--excited {
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.5) 0%, transparent 70%);
+  opacity: 0.8;
+  transform: scale(1.1);
+}
+
+.scene-robot-glow--speaking {
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.5) 0%, transparent 70%);
+  opacity: 0.6;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Robot body */
+.scene-robot-body {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(75, 85, 99, 0.5);
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(99, 102, 241, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.scene-robot-body:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(99, 102, 241, 0.4);
+}
+
+/* Mood states */
+.scene-robot-body--thinking {
+  animation: body-bounce 1s ease-in-out infinite;
+}
+
+.scene-robot-body--happy {
+  transform: scale(1.05);
+}
+
+.scene-robot-body--excited {
+  animation: body-pulse 0.5s ease-in-out infinite;
+}
+
+.scene-robot-body--speaking {
+  animation: body-speak 0.3s ease-in-out infinite;
+}
+
+@keyframes body-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes body-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes body-speak {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+/* Gradient border */
+.scene-robot-border {
+  position: absolute;
+  inset: -2px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
+  opacity: 0.5;
+  z-index: -1;
+}
+
+/* Inner content */
+.scene-robot-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Face */
+.scene-robot-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Eyes */
+.scene-robot-eyes {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.scene-robot-eye {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 
+    0 0 10px rgba(34, 211, 238, 0.8),
+    0 0 20px rgba(34, 211, 238, 0.4);
+  transition: transform 0.1s ease;
+}
+
+/* Mouth */
+.scene-robot-mouth {
+  width: 24px;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  transition: all 0.3s ease;
+}
+
+.scene-robot-mouth--happy {
+  width: 32px;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.scene-robot-mouth--thinking {
+  width: 16px;
+  height: 4px;
+  animation: mouth-pulse 1s ease-in-out infinite;
+}
+
+.scene-robot-mouth--speaking {
+  width: 32px;
+  height: 8px;
+  animation: mouth-pulse 0.3s ease-in-out infinite;
+}
+
+@keyframes mouth-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scaleY(0.6);
+  }
+}
+
+/* Antenna */
+.scene-robot-antenna {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.scene-robot-antenna-stem {
+  width: 4px;
+  height: 16px;
+  background: linear-gradient(to top, #6366f1, #a5b4fc);
+  border-radius: 2px;
+}
+
+.scene-robot-antenna-tip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.8);
+  margin-top: -2px;
+}
+
+.scene-robot-antenna-tip--thinking {
+  background: #a78bfa;
+  animation: antenna-ping 1s ease-in-out infinite;
+}
+
+@keyframes antenna-ping {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.5);
+  }
+}
+
+/* Side lights */
+.scene-robot-lights {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scene-robot-lights--left {
+  left: 8px;
+}
+
+.scene-robot-lights--right {
+  right: 8px;
+}
+
+.scene-robot-light {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6366f1;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
+  transition: all 0.3s ease;
+}
+
+.scene-robot-light--idle {
+  background: #22d3ee;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.8);
+  animation: light-pulse 2s ease-in-out infinite;
+}
+
+.scene-robot-light--thinking {
+  background: #a78bfa;
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.8);
+  animation: light-pulse 0.5s ease-in-out infinite;
+}
+
+.scene-robot-light--happy {
+  background: #34d399;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.8);
+}
+
+.scene-robot-light--speaking {
+  background: #34d399;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.8);
+  animation: light-pulse 0.3s ease-in-out infinite;
+}
+
+.scene-robot-light--excited {
+  background: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
+  animation: light-pulse 0.3s ease-in-out infinite;
+}
+
+@keyframes light-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Label */
+.scene-robot-label {
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #9ca3af;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.scene-robot-label--hovered {
+  color: #818cf8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .scene-robot-body {
+    width: 64px;
+    height: 64px;
+  }
+  
+  .scene-robot-eye {
+    width: 10px;
+    height: 10px;
+  }
+  
+  .scene-robot-mouth {
+    width: 20px;
+    height: 3px;
+  }
+  
+  .scene-robot-label {
+    font-size: 10px;
+    bottom: -24px;
+  }
+}
