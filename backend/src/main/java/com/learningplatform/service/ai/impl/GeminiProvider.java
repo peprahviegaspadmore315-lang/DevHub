@@ -624,10 +624,15 @@ public class GeminiProvider implements AIProvider {
                 inlineData = snakeInlineData;
             }
 
+            String mimeTypeValue = "image/png";
             Object mimeType = inlineData.get("mimeType");
-            if (!(mimeType instanceof String mimeTypeValue) || mimeTypeValue.isBlank()) {
+            if (mimeType instanceof String camelMimeType && !camelMimeType.isBlank()) {
+                mimeTypeValue = camelMimeType;
+            } else {
                 Object snakeMimeType = inlineData.get("mime_type");
-                mimeTypeValue = snakeMimeType instanceof String value && !value.isBlank() ? value : "image/png";
+                if (snakeMimeType instanceof String value && !value.isBlank()) {
+                    mimeTypeValue = value;
+                }
             }
 
             Object imageData = inlineData.get("data");
