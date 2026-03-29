@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, ReactNode } from 'react';
+import { useEffect, useRef, useState, useMemo, ReactNode, memo } from 'react';
 import { motion, useInView, useAnimation, Variants } from 'framer-motion';
 
 // ============================================
@@ -27,6 +27,17 @@ export const useScrollAnimation = (options: UseScrollAnimationOptions = {}) => {
 };
 
 // ============================================
+// Pre-computed initial positions (outside component to avoid recreation)
+// ============================================
+const getInitialPositionMap: Record<string, { x?: number; y?: number }> = {
+  up: { y: 30 },
+  down: { y: -30 },
+  left: { x: 30 },
+  right: { x: -30 },
+  none: {},
+};
+
+// ============================================
 // Scroll Reveal Container
 // ============================================
 
@@ -39,7 +50,7 @@ interface ScrollRevealProps {
   distance?: number;
 }
 
-export const ScrollReveal = ({
+const ScrollRevealComponent = ({
   children,
   className = '',
   delay = 0,
@@ -49,21 +60,22 @@ export const ScrollReveal = ({
 }: ScrollRevealProps) => {
   const { ref, isInView } = useScrollAnimation();
 
-  const getInitialPosition = () => {
-    switch (direction) {
-      case 'up': return { y: distance };
-      case 'down': return { y: -distance };
-      case 'left': return { x: distance };
-      case 'right': return { x: -distance };
-      case 'none': return {};
+  const initialPosition = useMemo(() => {
+    const base = getInitialPositionMap[direction];
+    if (direction === 'up' || direction === 'down') {
+      return { ...base, y: base.y !== undefined ? base.y * (distance / 30) : undefined };
     }
-  };
+    if (direction === 'left' || direction === 'right') {
+      return { ...base, x: base.x !== undefined ? base.x * (distance / 30) : undefined };
+    }
+    return base;
+  }, [direction, distance]);
 
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, ...getInitialPosition() }}
-      animate={isInView ? { opacity: 1, x: 0, y: 0 } : { opacity: 0, ...getInitialPosition() }}
+      initial={{ opacity: 0, ...initialPosition }}
+      animate={isInView ? { opacity: 1, x: 0, y: 0 } : { opacity: 0, ...initialPosition }}
       transition={{
         duration,
         delay,
@@ -75,6 +87,8 @@ export const ScrollReveal = ({
     </motion.div>
   );
 };
+
+export const ScrollReveal = memo(ScrollRevealComponent);
 
 // ============================================
 // Staggered List Animation
@@ -89,7 +103,7 @@ interface StaggeredListProps {
   type?: 'fade' | 'scale' | 'slide';
 }
 
-export const StaggeredList = ({
+const StaggeredListComponent = ({
   children,
   className = '',
   staggerDelay = 0.08,
@@ -99,28 +113,22 @@ export const StaggeredList = ({
 }: StaggeredListProps) => {
   const { ref, isInView } = useScrollAnimation({ once: true });
 
-  const getVariants = (): Variants => {
+  const variants = useMemo((): Variants => {
     const baseOffset = direction === 'up' ? 30 : direction === 'down' ? -30 : 0;
     const xOffset = direction === 'left' ? 30 : direction === 'right' ? -30 : 0;
 
-    const initial = {
-      opacity: 0,
-      y: baseOffset,
-      x: xOffset,
-      scale: type === 'scale' ? 0.95 : 1,
-    };
-
-    const animate = {
-      opacity: 1,
-      y: 0,
-      x: 0,
-      scale: 1,
-    };
-
     return {
-      hidden: initial,
+      hidden: {
+        opacity: 0,
+        y: baseOffset,
+        x: xOffset,
+        scale: type === 'scale' ? 0.95 : 1,
+      },
       visible: {
-        ...animate,
+        opacity: 1,
+        y: 0,
+        x: 0,
+        scale: 1,
         transition: {
           staggerChildren: staggerDelay,
           delayChildren: initialDelay,
@@ -129,12 +137,12 @@ export const StaggeredList = ({
         },
       },
     };
-  };
+  }, [direction, type, staggerDelay, initialDelay]);
 
   return (
     <motion.div
       ref={ref}
-      variants={getVariants()}
+      variants={variants}
       initial="hidden"
       animate={isInView ? 'visible' : 'hidden'}
       className={className}
@@ -143,6 +151,8 @@ export const StaggeredList = ({
     </motion.div>
   );
 };
+
+export const StaggeredList = memo(StaggeredListComponent);
 
 // ============================================
 // Staggered Item
@@ -153,26 +163,26 @@ interface StaggeredItemProps {
   className?: string;
 }
 
-export const StaggeredItem = ({ children, className = '' }: StaggeredItemProps) => {
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 30, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.4,
-        ease: [0.25, 0.1, 0.25, 1],
-      },
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 30, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      ease: [0.25, 0.1, 0.25, 1],
     },
-  };
-
-  return (
-    <motion.div variants={itemVariants} className={className}>
-      {children}
-    </motion.div>
-  );
+  },
 };
+
+const StaggeredItemComponent = ({ children, className = '' }: StaggeredItemProps) => (
+  <motion.div variants={itemVariants} className={className}>
+    {children}
+  </motion.div>
+);
+
+export const StaggeredItem = memo(StaggeredItemComponent);
 
 // ============================================
 // Fade In Container
@@ -185,7 +195,7 @@ interface FadeInProps {
   duration?: number;
 }
 
-export const FadeIn = ({
+const FadeInComponent = ({
   children,
   className = '',
   delay = 0,
@@ -206,6 +216,8 @@ export const FadeIn = ({
   );
 };
 
+export const FadeIn = memo(FadeInComponent);
+
 // ============================================
 // Scale In
 // ============================================
@@ -217,7 +229,7 @@ interface ScaleInProps {
   scale?: number;
 }
 
-export const ScaleIn = ({
+const ScaleInComponent = ({
   children,
   className = '',
   delay = 0,
@@ -242,6 +254,8 @@ export const ScaleIn = ({
   );
 };
 
+export const ScaleIn = memo(ScaleInComponent);
+
 // ============================================
 // Parallax Scroll Effect
 // ============================================
@@ -253,7 +267,7 @@ interface ParallaxProps {
   direction?: 'up' | 'down';
 }
 
-export const ParallaxScroll = ({
+const ParallaxScrollComponent = ({
   children,
   className = '',
   speed = 0.5,
@@ -291,6 +305,8 @@ export const ParallaxScroll = ({
   );
 };
 
+export const ParallaxScroll = memo(ParallaxScrollComponent);
+
 // ============================================
 // Animated Section
 // ============================================
@@ -303,7 +319,7 @@ interface AnimatedSectionProps {
   centered?: boolean;
 }
 
-export const AnimatedSection = ({
+const AnimatedSectionComponent = ({
   children,
   className = '',
   title,
@@ -331,6 +347,8 @@ export const AnimatedSection = ({
   );
 };
 
+export const AnimatedSection = memo(AnimatedSectionComponent);
+
 // ============================================
 // Lazy Load Image with Animation
 // ============================================
@@ -342,7 +360,7 @@ interface LazyImageProps {
   placeholder?: string;
 }
 
-export const LazyImage = ({
+const LazyImageComponent = ({
   src,
   alt,
   className = '',
@@ -388,6 +406,8 @@ export const LazyImage = ({
   );
 };
 
+export const LazyImage = memo(LazyImageComponent);
+
 // ============================================
 // Content Toggle Animation
 // ============================================
@@ -399,45 +419,40 @@ interface AnimatedContentProps {
   type?: 'fade' | 'slide' | 'scale';
 }
 
-export const AnimatedContent = ({
+const contentVariants: Record<'fade' | 'slide' | 'scale', Variants> = {
+  fade: {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 },
+  },
+  slide: {
+    hidden: { opacity: 0, y: -10 },
+    visible: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: 10 },
+  },
+  scale: {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.95 },
+  },
+};
+
+const AnimatedContentComponent = ({
   show,
   children,
   className = '',
   type = 'fade',
-}: AnimatedContentProps) => {
-  const getVariants = (): Variants => {
-    switch (type) {
-      case 'fade':
-        return {
-          hidden: { opacity: 0 },
-          visible: { opacity: 1 },
-          exit: { opacity: 0 },
-        };
-      case 'slide':
-        return {
-          hidden: { opacity: 0, y: -10 },
-          visible: { opacity: 1, y: 0 },
-          exit: { opacity: 0, y: 10 },
-        };
-      case 'scale':
-        return {
-          hidden: { opacity: 0, scale: 0.95 },
-          visible: { opacity: 1, scale: 1 },
-          exit: { opacity: 0, scale: 0.95 },
-        };
-    }
-  };
+}: AnimatedContentProps) => (
+  <motion.div
+    variants={contentVariants[type]}
+    initial="hidden"
+    animate={show ? 'visible' : 'hidden'}
+    exit="exit"
+    transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+    className={className}
+  >
+    {children}
+  </motion.div>
+);
 
-  return (
-    <motion.div
-      variants={getVariants()}
-      initial="hidden"
-      animate={show ? 'visible' : 'hidden'}
-      exit="exit"
-      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-};
+export const AnimatedContent = memo(AnimatedContentComponent);

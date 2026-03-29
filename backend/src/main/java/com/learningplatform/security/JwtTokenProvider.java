@@ -8,6 +8,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,8 +41,36 @@ public class JwtTokenProvider {
     }
     
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+        byte[] keyBytes = resolveSecretKeyBytes(jwtSecret);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private byte[] resolveSecretKeyBytes(String rawSecret) {
+        String normalizedSecret = rawSecret != null ? rawSecret.trim() : "";
+
+        if (normalizedSecret.isEmpty()) {
+            throw new IllegalStateException("JWT secret cannot be blank");
+        }
+
+        try {
+            byte[] decodedSecret = Decoders.BASE64.decode(normalizedSecret);
+            if (decodedSecret.length >= 32) {
+                return decodedSecret;
+            }
+        } catch (RuntimeException ignored) {
+            // Fall back to treating the configured secret as plain text.
+        }
+
+        byte[] plainTextSecret = normalizedSecret.getBytes(StandardCharsets.UTF_8);
+        if (plainTextSecret.length >= 32) {
+            return plainTextSecret;
+        }
+
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(plainTextSecret);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("Unable to derive a secure JWT signing key", ex);
+        }
     }
     
     public String extractUsername(String token) {

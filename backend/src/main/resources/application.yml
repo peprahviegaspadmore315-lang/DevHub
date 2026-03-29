@@ -4,117 +4,84 @@ server:
 spring:
   application:
     name: learning-platform
-  
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/learning_platform}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
-      idle-timeout: 300000
-      connection-timeout: 20000
-  
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-    open-in-view: false
-  
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
   jackson:
     serialization:
       write-dates-as-timestamps: false
     date-format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'
     time-zone: UTC
 
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      timeout: 60000ms
-
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
-
 app:
   jwt:
     secret: ${JWT_SECRET:YourSuperSecretKeyForJWTTokenGeneration123456789}
     access-token-expiration: 3600000
     refresh-token-expiration: 86400000
+  bootstrap-admin-secret: ${BOOTSTRAP_ADMIN_SECRET:bootstrap-secret-change-in-production}
+
+  auth:
+    frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5174}
+    password-reset-token-expiration-minutes: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:30}
+    password-reset-code-length: ${PASSWORD_RESET_CODE_LENGTH:6}
+
+  mail:
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
+
+  feedback:
+    recipient: ${FEEDBACK_RECIPIENT:${MAIL_FROM:${MAIL_USERNAME:}}}
 
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}
 
   ai:
     enabled: ${AI_ENABLED:true}
-    provider: gemini
-    open-ai-url: ${AI_OPENAI_URL:https://api.openai.com/v1/chat/completions}
-    open-ai-api-key: ${OPENAI_API_KEY:}
+    provider: ${AI_PROVIDER:gemini}
+    open-ai-url: ${AI_OPENAI_URL:https://api.openai.com/v1/responses}
+    open-ai-api-key: ${OPENAI_API_KEY:dummy-openai-key}
     gemini:
       enabled: ${GEMINI_ENABLED:true}
-      api-key: ${GEMINI_API_KEY:}
-      model: ${GEMINI_MODEL:gemini-1.5-flash}
-      base-url: https://generativelanguage.googleapis.com/v1beta/models
+      api-key: ${GEMINI_API_KEY:dummy-gemini-key-for-development}
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/models}
+      model: ${GEMINI_MODEL:gemini-2.5-flash}
       max-tokens: 2048
       temperature: 0.9
       top-p: 1.0
       top-k: 40
-      fallback-responses: ${AI_FALLBACK_ENABLED:true}
-    model: ${AI_MODEL:gpt-3.5-turbo}
+    model: ${AI_MODEL:gpt-5.4}
     max-tokens: 1000
     temperature: 0.7
     rate-limit-per-minute: 10
-
-  execution:
-    timeout-seconds: 10
-    max-memory-mb: 256
-    max-output-size: 65536
-    workspace-path: /tmp/execution
-    docker:
-      enabled: ${DOCKER_ENABLED:true}
-      host: ${DOCKER_HOST:unix:///var/run/docker.sock}
-
-  code-execution:
-    enabled: ${CODE_EXECUTION_ENABLED:true}
-    docker:
-      enabled: ${DOCKER_ENABLED:true}
-      socket-path: ${DOCKER_HOST:unix:///var/run/docker.sock}
-      container-timeout-ms: 15000
-    limits:
-      timeout-seconds: 10
-      max-memory-mb: 256
-      max-output-bytes: 65536
-      max-code-bytes: 102400
-    security:
-      enabled: true
-      block-network: true
-      block-file-system: true
-      block-system-commands: true
-    workspace-path: ${CODE_EXECUTION_PATH:/tmp/code-execution}
 
 logging:
   level:
     root: INFO
     com.learningplatform: DEBUG
     org.springframework.security: DEBUG
-
----
-spring:
-  config:
-    activate:
-      on-profile: gemini
-
-app:
-  ai:
-    provider: gemini
-    gemini:
-      api-key: ${GEMINI_API_KEY:}
-      model: gemini-1.5-flash

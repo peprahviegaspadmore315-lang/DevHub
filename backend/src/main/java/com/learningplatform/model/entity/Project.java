@@ -40,13 +40,11 @@ public class Project {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String instructions;
     
-    @Column(name = "starter_files", columnDefinition = "jsonb")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> starterFiles;
+    @Column(name = "starter_files", columnDefinition = "TEXT")
+    private String starterFiles;
     
-    @Column(name = "solution_files", columnDefinition = "jsonb")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> solutionFiles;
+    @Column(name = "solution_files", columnDefinition = "TEXT")
+    private String solutionFiles;
     
     @Enumerated(EnumType.STRING)
     @Column(length = 20)

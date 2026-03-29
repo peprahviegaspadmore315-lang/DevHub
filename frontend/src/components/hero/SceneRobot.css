@@ -5,6 +5,7 @@
   user-select: none;
   pointer-events: auto;
   animation: robot-float 4s ease-in-out infinite;
+  will-change: transform;
   transition: transform 0.3s ease;
 }
 
@@ -32,15 +33,28 @@
   }
 }
 
-/* Glow effects */
+/* Glow effects - optimized with scale instead of blur for better performance */
 .scene-robot-glow {
   position: absolute;
   inset: -20px;
   border-radius: 50%;
-  filter: blur(30px);
   opacity: 0.3;
-  transition: opacity 0.5s ease;
+  transition: opacity 0.5s ease, transform 0.3s ease;
   animation: glow-pulse 3s ease-in-out infinite;
+  will-change: transform, opacity;
+  /* Use a pseudo-blur effect with transform for better performance */
+  transform: scale(1);
+}
+
+.scene-robot-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  filter: blur(20px);
+  opacity: 0.8;
+  will-change: opacity;
 }
 
 .scene-robot-glow--idle {
@@ -99,18 +113,22 @@
 /* Mood states */
 .scene-robot-body--thinking {
   animation: body-bounce 1s ease-in-out infinite;
+  will-change: transform;
 }
 
 .scene-robot-body--happy {
   transform: scale(1.05);
+  will-change: transform;
 }
 
 .scene-robot-body--excited {
   animation: body-pulse 0.5s ease-in-out infinite;
+  will-change: transform;
 }
 
 .scene-robot-body--speaking {
   animation: body-speak 0.3s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes body-bounce {
@@ -183,6 +201,7 @@
     0 0 10px rgba(34, 211, 238, 0.8),
     0 0 20px rgba(34, 211, 238, 0.4);
   transition: transform 0.1s ease;
+  will-change: transform;
 }
 
 /* Mouth */
@@ -291,6 +310,7 @@
   background: #6366f1;
   box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
   transition: all 0.3s ease;
+  will-change: opacity, background-color, box-shadow;
 }
 
 .scene-robot-light--idle {

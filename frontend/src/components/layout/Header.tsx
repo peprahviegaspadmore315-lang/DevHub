@@ -1,13 +1,24 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store'
+import DevHubWordmark from '@/components/ui/devhub-wordmark'
 
 const Header = () => {
   const { isAuthenticated, user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const [searchQuery, setSearchQuery] = useState('')
 
   const handleLogout = () => {
     logout()
     navigate('/')
+  }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      navigate(`/topics?search=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchQuery('')
+    }
   }
 
   return (
@@ -20,7 +31,12 @@ const Header = () => {
                 <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
               </svg>
             </span>
-            DevHub
+            <DevHubWordmark
+              as="span"
+              tone="light"
+              devClassName="text-sky-200"
+              hubClassName="text-cyan-300"
+            />
           </Link>
           <nav className="hidden lg:flex gap-3 text-sm">
             <Link to="/" className="hover:text-gray-200">Tutorials</Link>
@@ -33,14 +49,24 @@ const Header = () => {
 
         <div className="flex items-center gap-2">
           <div className="hidden md:flex items-center relative">
-            <input
-              type="text"
-              placeholder="Search in tutorials..."
-              className="rounded-sm py-1 pl-8 pr-3 text-sm bg-white text-gray-800 placeholder:text-gray-400 focus:outline-none"
-            />
-            <svg className="w-4 h-4 absolute left-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <form onSubmit={handleSearch} className="flex">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search in tutorials..."
+                className="rounded-l-sm py-1 pl-8 pr-3 text-sm bg-white text-gray-800 placeholder:text-gray-400 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="bg-gray-100 border-l border-gray-300 rounded-r-sm py-1 px-2 hover:bg-gray-200 transition"
+                aria-label="Search"
+              >
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            </form>
           </div>
 
           {isAuthenticated ? (
@@ -50,8 +76,7 @@ const Header = () => {
             </>
           ) : (
             <>
-              <Link to="/login" className="text-sm px-3 py-1.5 border border-white/40 rounded-sm hover:bg-white/15 transition">Log in</Link>
-              <Link to="/register" className="text-sm px-3 py-1.5 bg-white text-[#317EFB] rounded-sm font-semibold hover:bg-gray-100 transition">Sign up</Link>
+              <Link to="/login" className="text-sm px-3 py-1.5 bg-white text-[#317EFB] rounded-sm font-semibold hover:bg-gray-100 transition">Login / Sign up</Link>
             </>
           )}
         </div>

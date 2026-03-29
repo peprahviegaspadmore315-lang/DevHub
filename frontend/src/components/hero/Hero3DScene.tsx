@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import * as THREE from 'three';
 import './Hero3DScene.css';
 
@@ -11,7 +11,15 @@ const lerp = (start: number, end: number, factor: number): number => {
   return start + (end - start) * factor;
 };
 
-const Hero3DScene: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
+// Pre-computed color palette outside component to avoid recreation
+const COLOR_PALETTE = [
+  new THREE.Color(0x6366f1),
+  new THREE.Color(0x8b5cf6),
+  new THREE.Color(0x06b6d4),
+  new THREE.Color(0x10b981),
+] as const;
+
+const Hero3DSceneComponent: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{
     scene: THREE.Scene;
@@ -80,13 +88,6 @@ const Hero3DScene: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
       const positions = new Float32Array(particleCount * 3);
       const colors = new Float32Array(particleCount * 3);
 
-      const colorPalette = [
-        new THREE.Color(0x6366f1),
-        new THREE.Color(0x8b5cf6),
-        new THREE.Color(0x06b6d4),
-        new THREE.Color(0x10b981),
-      ];
-
       for (let i = 0; i < particleCount; i++) {
         const radius = 2 + Math.random() * 1.5;
         const theta = Math.random() * Math.PI * 2;
@@ -96,7 +97,7 @@ const Hero3DScene: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
         positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
         positions[i * 3 + 2] = radius * Math.cos(phi);
 
-        const color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+        const color = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
         colors[i * 3] = color.r;
         colors[i * 3 + 1] = color.g;
         colors[i * 3 + 2] = color.b;
@@ -258,21 +259,32 @@ const Hero3DScene: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
     window.addEventListener('touchmove', handleMouseMove);
     window.addEventListener('resize', handleResize);
 
-    // Animation loop
+    // Pause rendering when tab is not visible
+    let isVisible = true;
+    const handleVisibilityChange = () => {
+      isVisible = document.visibilityState === 'visible';
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Animation loop with visibility-based pausing
     const animate = () => {
       if (!sceneRef.current) return;
 
-      const refs = sceneRef.current;
-      const { scene, camera, renderer, particleSphere, core, rings, ambientParticles, pointLights } = refs;
+      sceneRef.current.animationId = requestAnimationFrame(animate);
+
+      // Skip rendering if tab is not visible
+      if (!isVisible) return;
+
+      const refs_2 = sceneRef.current;
+      const { scene, camera, renderer, particleSphere, core, rings, ambientParticles, pointLights } = refs_2;
       
-      refs.animationId = requestAnimationFrame(animate);
-      refs.time += 0.01;
+      refs_2.time += 0.01;
 
       // Smooth mouse interpolation (lerp)
-      refs.mouse.x = lerp(refs.mouse.x, refs.targetMouse.x, 0.05);
-      refs.mouse.y = lerp(refs.mouse.y, refs.targetMouse.y, 0.05);
+      refs_2.mouse.x = lerp(refs_2.mouse.x, refs_2.targetMouse.x, 0.05);
+      refs_2.mouse.y = lerp(refs_2.mouse.y, refs_2.targetMouse.y, 0.05);
 
-      const { mouse } = refs;
+      const { mouse } = refs_2;
 
       // Particle sphere rotation + subtle mouse influence
       particleSphere.rotation.y += 0.002;
@@ -300,8 +312,8 @@ const Hero3DScene: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
       });
 
       // Floating movement (sine wave)
-      const floatY = Math.sin(refs.time) * 0.2;
-      const floatX = Math.cos(refs.time * 0.5) * 0.1;
+      const floatY = Math.sin(refs_2.time) * 0.2;
+      const floatX = Math.cos(refs_2.time * 0.5) * 0.1;
       
       core.position.y = floatY;
       core.position.x = floatX;
@@ -320,13 +332,13 @@ const Hero3DScene: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
       camera.lookAt(scene.position);
 
       // Pulse effect on core
-      const pulseScale = 1 + Math.sin(refs.time * 2) * 0.05;
+      const pulseScale = 1 + Math.sin(refs_2.time * 2) * 0.05;
       core.scale.set(pulseScale, pulseScale, pulseScale);
 
       // Particles react to mouse proximity
-      if (refs.particlePositions && refs.originalPositions) {
-        const positions = refs.particlePositions;
-        const original = refs.originalPositions;
+      if (refs_2.particlePositions && refs_2.originalPositions) {
+        const positions = refs_2.particlePositions;
+        const original = refs_2.originalPositions;
         const mouseWorldX = mouse.x * 5;
         const mouseWorldY = mouse.y * 3;
         const mouseInfluence = 0.5;
@@ -362,8 +374,8 @@ const Hero3DScene: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
       // Animate point lights
       pointLights.forEach((light, index) => {
         const offset = index * Math.PI * 0.5;
-        light.position.x = Math.cos(refs.time + offset) * 5 + mouse.x * 2;
-        light.position.y = Math.sin(refs.time * 0.5 + offset) * 3 + mouse.y * 2;
+        light.position.x = Math.cos(refs_2.time + offset) * 5 + mouse.x * 2;
+        light.position.y = Math.sin(refs_2.time * 0.5 + offset) * 3 + mouse.y * 2;
       });
 
       renderer.render(scene, camera);
@@ -376,6 +388,7 @@ const Hero3DScene: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('touchmove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
 
       if (sceneRef.current) {
         cancelAnimationFrame(sceneRef.current.animationId);
@@ -406,4 +419,4 @@ const Hero3DScene: React.FC<Hero3DSceneProps> = ({ className = '' }) => {
   );
 };
 
-export default Hero3DScene;
+export default memo(Hero3DSceneComponent);

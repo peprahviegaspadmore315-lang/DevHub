@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import Hero3DScene from './Hero3DScene';
 import SceneRobot from './SceneRobot';
 import './HeroScene.css';
@@ -7,7 +8,7 @@ interface HeroSceneProps {
   robotPosition?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 }
 
-const HeroScene: React.FC<HeroSceneProps> = ({
+const HeroSceneComponent: React.FC<HeroSceneProps> = ({
   showRobot = true,
   robotPosition = 'bottom-right'
 }) => {
@@ -24,4 +25,4 @@ const HeroScene: React.FC<HeroSceneProps> = ({
   );
 };
 
-export default HeroScene;
+export default memo(HeroSceneComponent);

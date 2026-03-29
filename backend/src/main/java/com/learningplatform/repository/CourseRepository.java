@@ -19,6 +19,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     List<Course> findByIsPublishedTrue();
     
     List<Course> findByIsFeaturedTrueAndIsPublishedTrue();
+
+    long countByIsPublishedTrue();
     
     List<Course> findByCategory(String category);
     

@@ -6,6 +6,8 @@ import com.learningplatform.model.entity.*;
 import com.learningplatform.repository.*;
 import com.learningplatform.service.CodeExecutionService;
 import com.learningplatform.service.ExerciseService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +61,24 @@ public class ExerciseServiceImpl implements ExerciseService {
                     .orElseThrow(() -> new ResourceNotFoundException("Lesson not found"));
         }
 
+        String hintsJson = "[]";
+        if (request.getHints() != null) {
+            try {
+                hintsJson = new ObjectMapper().writeValueAsString(request.getHints());
+            } catch (JsonProcessingException e) {
+                hintsJson = "[]";
+            }
+        }
+
+        String testCasesJson = "{}";
+        if (request.getTestCases() != null) {
+            try {
+                testCasesJson = new ObjectMapper().writeValueAsString(request.getTestCases());
+            } catch (JsonProcessingException e) {
+                testCasesJson = "{}";
+            }
+        }
+
         Exercise exercise = Exercise.builder()
                 .course(course)
                 .lesson(lesson)
@@ -68,10 +88,10 @@ public class ExerciseServiceImpl implements ExerciseService {
                 .type(request.getType() != null ? request.getType() : com.learningplatform.model.enums.ExerciseType.WRITE_CODE)
                 .starterCode(request.getStarterCode())
                 .solution(request.getSolution())
-                .testCases(request.getTestCases() != null ? request.getTestCases() : Map.of())
+                .testCases(testCasesJson)
                 .difficulty(request.getDifficulty() != null ? request.getDifficulty() : com.learningplatform.model.enums.Difficulty.BEGINNER)
                 .points(request.getPoints() != null ? request.getPoints() : 10)
-                .hints(request.getHints())
+                .hints(hintsJson)
                 .constraints(request.getConstraints())
                 .orderIndex(request.getOrderIndex() != null ? request.getOrderIndex() : 0)
                 .timeLimitSeconds(request.getTimeLimitSeconds() != null ? request.getTimeLimitSeconds() : 30)
@@ -92,10 +112,22 @@ public class ExerciseServiceImpl implements ExerciseService {
         if (request.getType() != null) exercise.setType(request.getType());
         if (request.getStarterCode() != null) exercise.setStarterCode(request.getStarterCode());
         if (request.getSolution() != null) exercise.setSolution(request.getSolution());
-        if (request.getTestCases() != null) exercise.setTestCases(request.getTestCases());
+        if (request.getTestCases() != null) {
+            try {
+                exercise.setTestCases(new ObjectMapper().writeValueAsString(request.getTestCases()));
+            } catch (JsonProcessingException e) {
+                exercise.setTestCases("{}");
+            }
+        }
         if (request.getDifficulty() != null) exercise.setDifficulty(request.getDifficulty());
         if (request.getPoints() != null) exercise.setPoints(request.getPoints());
-        if (request.getHints() != null) exercise.setHints(request.getHints());
+        if (request.getHints() != null) {
+            try {
+                exercise.setHints(new ObjectMapper().writeValueAsString(request.getHints()));
+            } catch (JsonProcessingException e) {
+                exercise.setHints("[]");
+            }
+        }
         if (request.getConstraints() != null) exercise.setConstraints(request.getConstraints());
         if (request.getOrderIndex() != null) exercise.setOrderIndex(request.getOrderIndex());
         if (request.getTimeLimitSeconds() != null) exercise.setTimeLimitSeconds(request.getTimeLimitSeconds());
@@ -111,7 +143,6 @@ public class ExerciseServiceImpl implements ExerciseService {
     }
 
     @Override
-    @Transactional
     public ExerciseAttempt submitSolution(Long exerciseId, String userCode, Long userId) {
         Exercise exercise = getExerciseById(exerciseId);
         User user = userRepository.findById(userId)
@@ -160,7 +191,16 @@ public class ExerciseServiceImpl implements ExerciseService {
     @Override
     public List<String> getHints(Long exerciseId) {
         Exercise exercise = getExerciseById(exerciseId);
-        return Arrays.asList(exercise.getHints() != null ? exercise.getHints() : new String[0]);
+        String hintsJson = exercise.getHints();
+        if (hintsJson == null || hintsJson.isEmpty()) {
+            return Arrays.asList();
+        }
+        try {
+            return new ObjectMapper().readValue(hintsJson, List.class);
+        } catch (Exception e) {
+            // Fallback: split by comma if not JSON
+            return Arrays.asList(hintsJson.split(","));
+        }
     }
 
     private com.learningplatform.model.dto.CodeRunRequest.Language mapExerciseTypeToLanguage(
@@ -168,7 +208,7 @@ public class ExerciseServiceImpl implements ExerciseService {
         if (type == null) return com.learningplatform.model.dto.CodeRunRequest.Language.JAVASCRIPT;
         return switch (type) {
             case WRITE_CODE, FIX_CODE, CODE_COMPLETION -> 
-                com.learningplatform.model.dto.CodeRunRequest.Language.JAVASCRIPT;
+                    com.learningplatform.model.dto.CodeRunRequest.Language.JAVASCRIPT;
             default -> com.learningplatform.model.dto.CodeRunRequest.Language.JAVASCRIPT;
         };
     }

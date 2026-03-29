@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback } from 'react'
-import Editor from '@monaco-editor/react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import { codeExecutionService, type SupportedLanguage } from '@/services/codeExecutionService'
+import ComponentFileViewer from '@/components/ui/file-viewer'
+import { buildIdeWorkspaceComponent } from '@/lib/ide-workspace'
 import './TryItYourself.css'
 
 interface TryItYourselfProps {
@@ -152,6 +153,43 @@ export default function TryItYourself({
     }
   }
 
+  const previewDocument =
+    showPreview && language === 'html'
+      ? code
+      : showPreview && language === 'css'
+        ? `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>${code}</style>
+  </head>
+  <body>
+    <h1>CSS Preview</h1>
+    <p>This preview is generated from your Try It Yourself editor.</p>
+  </body>
+</html>`
+        : undefined
+
+  const workspaceComponent = useMemo(
+    () =>
+      buildIdeWorkspaceComponent({
+        workspaceName: 'Try It Yourself Workspace',
+        workspaceVersion: 'lesson',
+        language,
+        code,
+        previewHtml: previewDocument,
+        output,
+        error,
+        exercise: {
+          title: 'Lesson practice',
+          description: 'Experiment safely inside the embedded DevHub lesson editor.',
+          instructions:
+            'Edit the source file, run your code, and inspect the generated workspace files below.',
+        },
+      }),
+    [code, error, language, output, previewDocument]
+  )
+
   return (
     <div className="try-editor" onKeyDown={handleKeyDown}>
       <div className="try-editor-header">
@@ -189,14 +227,12 @@ export default function TryItYourself({
       </div>
 
       <div className="try-editor-body" style={{ height }}>
-        <div className="try-editor-editor">
-          <Editor
-            height="100%"
-            language={langConfig.monaco}
-            value={code}
-            onChange={(value) => setCode(value || '')}
-            theme="vs-dark"
-            options={{
+        <div className="try-editor-editor bg-slate-950">
+          <ComponentFileViewer
+            component={workspaceComponent}
+            onFileChange={(_, nextValue) => setCode(nextValue)}
+            editorTheme="vs-dark"
+            editorOptions={{
               fontSize: 14,
               fontFamily: "'Fira Code', 'Consolas', monospace",
               minimap: { enabled: false },
@@ -207,6 +243,7 @@ export default function TryItYourself({
               folding: true,
               wordWrap: 'on',
             }}
+            className="h-full rounded-none border-0 shadow-none"
           />
         </div>
 

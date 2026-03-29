@@ -1,12 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Motion design system */
 @import './styles/motion.css';
 
 /* Micro-interactions - Apple-style */
 @import './styles/micro-interactions.css';
+
+/* Futuristic AI Theme */
+@import './styles/futuristic-theme.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -26,9 +29,51 @@
 }
 
 :root {
+  --radius: 0.65rem;
   --sidebar-width: 280px;
   --sidebar-collapsed-width: 60px;
   --header-height: 60px;
+  --background: 210 40% 98%;
+  --foreground: 222.2 47.4% 11.2%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 47.4% 11.2%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 11.2%;
+  --primary: 199 89% 48%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 199 89% 40%;
+  --accent: 204 94% 94%;
+  --accent-foreground: 199 89% 28%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 199 89% 48%;
+}
+
+html.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 199 89% 58%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 199 89% 70%;
+  --accent: 214 72% 20%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 199 89% 58%;
 }
 
 * {
@@ -485,4 +530,3 @@ html.dark .card {
 .chat-input button:hover {
   background: #4338ca;
 }
-

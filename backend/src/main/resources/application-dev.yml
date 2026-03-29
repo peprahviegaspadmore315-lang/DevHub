@@ -1,12 +1,24 @@
 server:
-  port: 8082
+  port: 9090
 
 spring:
   application:
     name: learning-platform
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   
   datasource:
-    url: jdbc:h2:mem:learningdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    url: jdbc:h2:file:./data/learningdb;AUTO_SERVER=TRUE;MODE=PostgreSQL
     username: sa
     password: 
     driver-class-name: org.h2.Driver
@@ -29,6 +41,7 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
   
   jackson:
     serialization:
@@ -48,33 +61,35 @@ app:
   jwt:
     secret: ${JWT_SECRET:YourSuperSecretKeyForJWTTokenGeneration123456789}
     access-token-expiration: 3600000
+    refresh-token-expiration: 86400000
 
   ai:
     enabled: true
-    provider: gemini
-    gemini:
-      enabled: true
-      api-key: ${GEMINI_API_KEY:}
-      model: gemini-pro
-      base-url: https://generativelanguage.googleapis.com/v1beta/models
-      max-tokens: 2048
-      temperature: 0.9
-      top-p: 1.0
-      top-k: 40
-    refresh-token-expiration: 86400000
+    provider: ${AI_PROVIDER:gemini}
+
+  auth:
+    frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5174}
+    password-reset-token-expiration-minutes: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:30}
+    password-reset-code-length: ${PASSWORD_RESET_CODE_LENGTH:6}
 
   cors:
-    allowed-origins: http://localhost:5173,http://localhost:3000
+    allowed-origins: http://localhost:*,http://127.0.0.1:*
 
-  execution:
-    timeout-seconds: 10
-    max-memory-mb: 256
-    max-output-size: 65536
+  mail:
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
+
+  code-execution:
     workspace-path: ${java.io.tmpdir}/workspace
+    limits:
+      timeout-seconds: 10
+      max-memory-mb: 256
+      max-output-bytes: 65536
     docker:
       enabled: false
 
 logging:
   level:
     root: INFO
-    com.learningplatform: INFO
+    com.learningplatform: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG

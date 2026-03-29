@@ -23,9 +23,13 @@ public interface ExerciseRepository extends JpaRepository<Exercise, Long> {
     List<Exercise> findByCourseIdAndDifficulty(Long courseId, Difficulty difficulty);
     
     Page<Exercise> findByIsPublishedTrue(Pageable pageable);
+
+    long countByIsPublishedTrue();
     
     @Query("SELECT e FROM Exercise e WHERE e.course.id = :courseId AND e.lesson.id = :lessonId ORDER BY e.orderIndex ASC")
     List<Exercise> findByCourseAndLesson(Long courseId, Long lessonId);
     
     Long countByCourseId(Long courseId);
+
+    Long countByCourseIdAndIsPublishedTrue(Long courseId);
 }

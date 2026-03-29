@@ -1,0 +1,174 @@
+{
+  "title": "CSS Topics",
+  "sections": [
+    {
+      "name": "Basics",
+      "topics": [
+        "CSS HOME",
+        "CSS Introduction",
+        "CSS Syntax",
+        "CSS Selectors",
+        "CSS How To",
+        "CSS Comments",
+        "CSS Errors",
+        "CSS Colors",
+        "CSS Backgrounds",
+        "CSS Borders",
+        "CSS Margins",
+        "CSS Padding",
+        "CSS Height / Width",
+        "CSS Box Model",
+        "CSS Outline",
+        "CSS Text",
+        "CSS Fonts",
+        "CSS Icons",
+        "CSS Links",
+        "CSS Lists",
+        "CSS Tables",
+        "CSS Display",
+        "CSS Max-width",
+        "CSS Position",
+        "CSS Position Offsets",
+        "CSS Z-index",
+        "CSS Overflow",
+        "CSS Float",
+        "CSS Inline-block",
+        "CSS Align",
+        "CSS Combinators",
+        "CSS Pseudo-classes",
+        "CSS Pseudo-elements",
+        "CSS Opacity",
+        "CSS Navigation Bars",
+        "CSS Dropdowns",
+        "CSS Image Gallery",
+        "CSS Image Sprites",
+        "CSS Attribute Selectors",
+        "CSS Forms",
+        "CSS Counters",
+        "CSS Units",
+        "CSS Inheritance",
+        "CSS Specificity",
+        "CSS !important",
+        "CSS Math Functions",
+        "CSS Optimization",
+        "CSS Accessibility",
+        "CSS Website Layout"
+      ]
+    },
+    {
+      "name": "Advanced",
+      "topics": [
+        "CSS Advanced",
+        "CSS Rounded Corners",
+        "CSS Border Images",
+        "CSS Backgrounds",
+        "CSS Colors",
+        "CSS Gradients",
+        "CSS Shadows",
+        "CSS Text Effects",
+        "CSS Custom Fonts",
+        "CSS 2D Transforms",
+        "CSS 3D Transforms",
+        "CSS Transitions",
+        "CSS Animations",
+        "CSS Tooltips",
+        "CSS Image Styling",
+        "CSS Image Modal",
+        "CSS Image Centering",
+        "CSS Image Filters",
+        "CSS Image Shapes",
+        "CSS object-fit",
+        "CSS object-position",
+        "CSS Masking",
+        "CSS Buttons",
+        "CSS Pagination",
+        "CSS Multiple Columns",
+        "CSS User Interface",
+        "CSS Variables",
+        "CSS @property",
+        "CSS Box Sizing",
+        "CSS Media Queries"
+      ]
+    },
+    {
+      "name": "Flexbox",
+      "topics": [
+        "Flexbox Intro",
+        "Flex Container",
+        "Flex Items",
+        "Flex Responsive"
+      ]
+    },
+    {
+      "name": "Grid",
+      "topics": [
+        "Grid Intro",
+        "Grid Container",
+        "Grid Items",
+        "Grid 12-column Layout",
+        "CSS @supports"
+      ]
+    },
+    {
+      "name": "Responsive",
+      "topics": [
+        "RWD Intro",
+        "RWD Viewport",
+        "RWD Grid View",
+        "RWD Media Queries",
+        "RWD Images",
+        "RWD Videos",
+        "RWD Frameworks",
+        "RWD Templates"
+      ]
+    },
+    {
+      "name": "SASS",
+      "topics": [
+        "CSS SASS",
+        "SASS Tutorial"
+      ]
+    },
+    {
+      "name": "Examples",
+      "topics": [
+        "CSS Examples",
+        "CSS Templates",
+        "CSS Examples",
+        "CSS Editor",
+        "CSS Snippets",
+        "CSS Quiz",
+        "CSS Exercises",
+        "CSS Code Challenges",
+        "CSS Website",
+        "CSS Syllabus",
+        "CSS Study Plan",
+        "CSS Interview Prep",
+        "CSS Bootcamp",
+        "CSS Certificate"
+      ]
+    },
+    {
+      "name": "References",
+      "topics": [
+        "CSS References",
+        "CSS Reference",
+        "CSS Selectors",
+        "CSS Combinators",
+        "CSS Pseudo-classes",
+        "CSS Pseudo-elements",
+        "CSS At-rules",
+        "CSS Functions",
+        "CSS Reference Aural",
+        "CSS Web Safe Fonts",
+        "CSS Animatable",
+        "CSS Units",
+        "CSS PX-EM Converter",
+        "CSS Colors",
+        "CSS Color Values",
+        "CSS Default Values",
+        "CSS Browser Support"
+      ]
+    }
+  ]
+}

@@ -44,7 +44,7 @@ public class AIChatResponse {
         return AIChatResponse.builder()
                 .success(true)
                 .message(message)
-                .aiName("LearnBot")
+                .aiName("DevHub AI")
                 .model(model)
                 .timestamp(LocalDateTime.now())
                 .build();

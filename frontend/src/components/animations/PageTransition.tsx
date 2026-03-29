@@ -1,6 +1,6 @@
 import { motion, AnimatePresence, Variants, Transition } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 
 interface PageTransitionProps {
   children: ReactNode;
@@ -111,7 +111,7 @@ const fadeVariants: Variants = {
 };
 
 // Page transition wrapper with AnimatePresence
-export const PageTransition = ({ children, className }: PageTransitionProps) => {
+const PageTransitionComponent = ({ children, className }: PageTransitionProps) => {
   const location = useLocation();
 
   return (
@@ -131,8 +131,10 @@ export const PageTransition = ({ children, className }: PageTransitionProps) => 
   );
 };
 
+export const PageTransition = memo(PageTransitionComponent);
+
 // Animated page wrapper with layout
-export const AnimatedPage = ({ children, className }: PageTransitionProps) => {
+const AnimatedPageComponent = ({ children, className }: PageTransitionProps) => {
   const location = useLocation();
 
   return (
@@ -149,8 +151,10 @@ export const AnimatedPage = ({ children, className }: PageTransitionProps) => {
   );
 };
 
+export const AnimatedPage = memo(AnimatedPageComponent);
+
 // Staggered container for lists/cards
-export const StaggerContainer = ({ 
+const StaggerContainerComponent = ({ 
   children, 
   className,
   delay = 0 
@@ -173,15 +177,19 @@ export const StaggerContainer = ({
   </motion.div>
 );
 
+export const StaggerContainer = memo(StaggerContainerComponent);
+
 // Staggered item
-export const StaggerItem = ({ children, className }: { children: ReactNode; className?: string }) => (
+const StaggerItemComponent = ({ children, className }: { children: ReactNode; className?: string }) => (
   <motion.div variants={itemVariants} className={className}>
     {children}
   </motion.div>
 );
 
+export const StaggerItem = memo(StaggerItemComponent);
+
 // Animated card with hover
-export const AnimatedCard = ({ 
+const AnimatedCardComponent = ({ 
   children, 
   className,
   onClick 
@@ -202,8 +210,10 @@ export const AnimatedCard = ({
   </motion.div>
 );
 
+export const AnimatedCard = memo(AnimatedCardComponent);
+
 // Slide in from left
-export const SlideInLeft = ({ children, className, delay = 0 }: { children: ReactNode; className?: string; delay?: number }) => (
+const SlideInLeftComponent = ({ children, className, delay = 0 }: { children: ReactNode; className?: string; delay?: number }) => (
   <motion.div
     variants={slideVariants}
     initial="hidden"
@@ -215,8 +225,10 @@ export const SlideInLeft = ({ children, className, delay = 0 }: { children: Reac
   </motion.div>
 );
 
+export const SlideInLeft = memo(SlideInLeftComponent);
+
 // Scale in (for modals)
-export const ScaleIn = ({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) => (
+const ScaleInPTComponent = ({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) => (
   <motion.div
     variants={scaleVariants}
     initial="hidden"
@@ -229,8 +241,10 @@ export const ScaleIn = ({ children, className, onClick }: { children: ReactNode;
   </motion.div>
 );
 
+export const ScaleIn = memo(ScaleInPTComponent);
+
 // Fade in/out
-export const FadeIn = ({ children, className, delay = 0 }: { children: ReactNode; className?: string; delay?: number }) => (
+const FadeInPTComponent = ({ children, className, delay = 0 }: { children: ReactNode; className?: string; delay?: number }) => (
   <motion.div
     variants={fadeVariants}
     initial="hidden"
@@ -243,8 +257,10 @@ export const FadeIn = ({ children, className, delay = 0 }: { children: ReactNode
   </motion.div>
 );
 
+export const FadeIn = memo(FadeInPTComponent);
+
 // Overlay backdrop for modals
-export const Backdrop = ({ 
+const BackdropComponent = ({ 
   children, 
   onClick,
   className 
@@ -265,5 +281,7 @@ export const Backdrop = ({
     {children}
   </motion.div>
 );
+
+export const Backdrop = memo(BackdropComponent);
 
 export { pageVariants, itemVariants, slideVariants, scaleVariants, fadeVariants, pageTransition, ease };

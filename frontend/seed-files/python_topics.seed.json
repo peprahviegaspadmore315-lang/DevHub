@@ -1,0 +1,279 @@
+{
+  "title": "Python Topics",
+  "sections": [
+    {
+      "name": "Getting Started",
+      "topics": [
+        "Python Tutorial",
+        "Python HOME",
+        "Python Intro",
+        "Python Get Started"
+      ]
+    },
+    {
+      "name": "Syntax and Basics",
+      "topics": [
+        "Python Syntax",
+        "Python Output",
+        "Python Comments",
+        "Python Variables",
+        "Python Data Types",
+        "Python Numbers",
+        "Python Casting",
+        "Python Strings",
+        "Python Booleans",
+        "Python Operators"
+      ]
+    },
+    {
+      "name": "Control Flow",
+      "topics": [
+        "Python If...Else",
+        "Python Match",
+        "Python While Loops",
+        "Python For Loops"
+      ]
+    },
+    {
+      "name": "Functions",
+      "topics": [
+        "Python Functions",
+        "Python Range"
+      ]
+    },
+    {
+      "name": "Data Structures",
+      "topics": [
+        "Python Lists",
+        "Python Tuples",
+        "Python Sets",
+        "Python Dictionaries",
+        "Python Arrays",
+        "Python Iterators"
+      ]
+    },
+    {
+      "name": "Modules",
+      "topics": [
+        "Python Modules"
+      ]
+    },
+    {
+      "name": "Dates and Time",
+      "topics": [
+        "Python Dates"
+      ]
+    },
+    {
+      "name": "Math and Misc",
+      "topics": [
+        "Python Math",
+        "Python JSON",
+        "Python RegEx",
+        "Python PIP",
+        "Python Try...Except",
+        "Python String Formatting",
+        "Python None",
+        "Python User Input",
+        "Python VirtualEnv"
+      ]
+    },
+    {
+      "name": "Object Oriented Programming",
+      "topics": [
+        "Python Classes",
+        "Python OOP",
+        "Python Classes/Objects",
+        "Python __init__ Method",
+        "Python self Parameter",
+        "Python Class Properties",
+        "Python Class Methods",
+        "Python Inheritance",
+        "Python Polymorphism",
+        "Python Encapsulation",
+        "Python Inner Classes"
+      ]
+    },
+    {
+      "name": "File Handling",
+      "topics": [
+        "File Handling",
+        "Python File Handling",
+        "Python Read Files",
+        "Python Write/Create Files",
+        "Python Delete Files"
+      ]
+    },
+    {
+      "name": "Libraries (Data Science)",
+      "topics": [
+        "NumPy Tutorial",
+        "Pandas Tutorial",
+        "SciPy Tutorial",
+        "Django Tutorial"
+      ]
+    },
+    {
+      "name": "Plotting and Visualization",
+      "topics": [
+        "Python Matplotlib",
+        "Matplotlib Intro",
+        "Matplotlib Get Started",
+        "Matplotlib Pyplot",
+        "Matplotlib Plotting",
+        "Matplotlib Markers",
+        "Matplotlib Line",
+        "Matplotlib Labels",
+        "Matplotlib Grid",
+        "Matplotlib Subplot",
+        "Matplotlib Scatter",
+        "Matplotlib Bars",
+        "Matplotlib Histograms",
+        "Matplotlib Pie Charts"
+      ]
+    },
+    {
+      "name": "Machine Learning",
+      "topics": [
+        "Machine Learning",
+        "Mean Median Mode",
+        "Standard Deviation",
+        "Percentile",
+        "Data Distribution",
+        "Normal Data Distribution",
+        "Scatter Plot",
+        "Linear Regression",
+        "Polynomial Regression",
+        "Multiple Regression",
+        "Scale",
+        "Train/Test",
+        "Decision Tree",
+        "Confusion Matrix",
+        "Hierarchical Clustering",
+        "Logistic Regression",
+        "Grid Search",
+        "Categorical Data",
+        "K-means",
+        "Bootstrap Aggregation",
+        "Cross Validation",
+        "AUC - ROC Curve",
+        "K-nearest neighbors"
+      ]
+    },
+    {
+      "name": "Data Structures and Algorithms (DSA)",
+      "topics": [
+        "Python DSA",
+        "Lists and Arrays",
+        "Stacks",
+        "Queues",
+        "Linked Lists",
+        "Hash Tables",
+        "Trees",
+        "Binary Trees",
+        "Binary Search Trees",
+        "AVL Trees",
+        "Graphs",
+        "Linear Search",
+        "Binary Search",
+        "Bubble Sort",
+        "Selection Sort",
+        "Insertion Sort",
+        "Quick Sort",
+        "Counting Sort",
+        "Radix Sort",
+        "Merge Sort"
+      ]
+    },
+    {
+      "name": "Databases",
+      "topics": [
+        "Python MySQL",
+        "MySQL Get Started",
+        "MySQL Create Database",
+        "MySQL Create Table",
+        "MySQL Insert",
+        "MySQL Select",
+        "MySQL Where",
+        "MySQL Order By",
+        "MySQL Delete",
+        "MySQL Drop Table",
+        "MySQL Update",
+        "MySQL Limit",
+        "MySQL Join"
+      ]
+    },
+    {
+      "name": "NoSQL Databases",
+      "topics": [
+        "Python MongoDB",
+        "MongoDB Get Started",
+        "MongoDB Create DB",
+        "MongoDB Collection",
+        "MongoDB Insert",
+        "MongoDB Find",
+        "MongoDB Query",
+        "MongoDB Sort",
+        "MongoDB Delete",
+        "MongoDB Drop Collection",
+        "MongoDB Update",
+        "MongoDB Limit"
+      ]
+    },
+    {
+      "name": "Reference",
+      "topics": [
+        "Python Reference",
+        "Python Overview",
+        "Python Built-in Functions",
+        "Python String Methods",
+        "Python List Methods",
+        "Python Dictionary Methods",
+        "Python Tuple Methods",
+        "Python Set Methods",
+        "Python File Methods",
+        "Python Keywords",
+        "Python Exceptions",
+        "Python Glossary"
+      ]
+    },
+    {
+      "name": "Module Reference",
+      "topics": [
+        "Module Reference",
+        "Built-in Modules",
+        "Random Module",
+        "Requests Module",
+        "Statistics Module",
+        "Math Module",
+        "cMath Module"
+      ]
+    },
+    {
+      "name": "How To",
+      "topics": [
+        "Python How To",
+        "Remove List Duplicates",
+        "Reverse a String",
+        "Add Two Numbers"
+      ]
+    },
+    {
+      "name": "Examples and Practice",
+      "topics": [
+        "Python Examples",
+        "Python Compiler",
+        "Python Exercises",
+        "Python Quiz",
+        "Python Challenges",
+        "Python Server",
+        "Python Syllabus",
+        "Python Study Plan",
+        "Python Interview Q&A",
+        "Python Bootcamp",
+        "Python Certificate",
+        "Python Training"
+      ]
+    }
+  ]
+}

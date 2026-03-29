@@ -41,7 +41,12 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Override
     @Transactional(readOnly = true)
     public UserProfileDTO getUserProfileByUsername(String username) {
-        User user = userRepository.findByUsername(username)
+        String normalizedUsername = normalizeOptional(username);
+        if (normalizedUsername == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
+        User user = userRepository.findByNormalizedUsername(normalizedUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         
         return mapToUserProfileDTO(user);
@@ -53,26 +58,46 @@ public class UserProfileServiceImpl implements UserProfileService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        normalizeExistingUsername(user);
+
+        String normalizedUsername = normalizeOptional(request.getUsername());
+
         // Validate username uniqueness if being changed
-        if (request.getUsername() != null && !request.getUsername().equals(user.getUsername())) {
-            if (userRepository.existsByUsername(request.getUsername())) {
+        if (normalizedUsername != null && !normalizedUsername.equals(user.getUsername())) {
+            var existingUser = userRepository.findByNormalizedUsername(normalizedUsername);
+            if (existingUser.isPresent() && !existingUser.get().getId().equals(user.getId())) {
                 throw new BadRequestException("Username already exists");
             }
-            user.setUsername(request.getUsername());
+            user.setUsername(normalizedUsername);
         }
 
         // Update fields if provided
         if (request.getFirstName() != null) {
-            user.setFirstName(request.getFirstName());
+            user.setFirstName(normalizeOptional(request.getFirstName()));
         }
         if (request.getLastName() != null) {
-            user.setLastName(request.getLastName());
+            user.setLastName(normalizeOptional(request.getLastName()));
         }
         if (request.getBio() != null) {
-            user.setBio(request.getBio());
+            user.setBio(normalizeOptional(request.getBio()));
         }
         if (request.getAvatarUrl() != null) {
-            user.setAvatarUrl(request.getAvatarUrl());
+            user.setAvatarUrl(normalizeOptional(request.getAvatarUrl()));
+        }
+        if (request.getPhone() != null) {
+            user.setPhone(normalizeOptional(request.getPhone()));
+        }
+        if (request.getLocation() != null) {
+            user.setLocation(normalizeOptional(request.getLocation()));
+        }
+        if (request.getWebsite() != null) {
+            user.setWebsite(normalizeWebsite(request.getWebsite()));
+        }
+        if (request.getProfession() != null) {
+            user.setProfession(normalizeOptional(request.getProfession()));
+        }
+        if (request.getCompany() != null) {
+            user.setCompany(normalizeOptional(request.getCompany()));
         }
 
         user = userRepository.save(user);
@@ -136,11 +161,16 @@ public class UserProfileServiceImpl implements UserProfileService {
         return UserProfileDTO.builder()
                 .id(user.getId())
                 .email(user.getEmail())
-                .username(user.getUsername())
+                .username(normalizeOptional(user.getUsername()))
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .avatarUrl(user.getAvatarUrl())
                 .bio(user.getBio())
+                .phone(user.getPhone())
+                .location(user.getLocation())
+                .website(user.getWebsite())
+                .profession(user.getProfession())
+                .company(user.getCompany())
                 .role(user.getRole())
                 .isActive(user.getIsActive())
                 .emailVerified(user.getEmailVerified())
@@ -151,5 +181,39 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .quizzesCompleted(quizzesCompleted)
                 .totalPointsEarned(totalPoints)
                 .build();
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeWebsite(String value) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+            return "https://" + normalized;
+        }
+
+        return normalized;
+    }
+
+    private void normalizeExistingUsername(User user) {
+        String normalizedUsername = normalizeOptional(user.getUsername());
+        if (normalizedUsername == null || normalizedUsername.equals(user.getUsername())) {
+            return;
+        }
+
+        var existingUser = userRepository.findByNormalizedUsername(normalizedUsername);
+        if (existingUser.isEmpty() || existingUser.get().getId().equals(user.getId())) {
+            user.setUsername(normalizedUsername);
+        }
     }
 }

@@ -1,143 +1,66 @@
-import { useState, useEffect } from 'react'
-import CourseCard from '@/components/CourseCard'
-import { courseData, CourseData } from '@/data/courseData'
+import { Award, BookOpen, Code2, Lightbulb, Sparkles } from 'lucide-react'
+import InteractiveSelector from '@/components/ui/interactive-selector'
+import { courseData, type CourseData } from '@/data/courseData'
 
 const CoursesPage = () => {
-  const [categories, setCategories] = useState<string[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [searchText, setSearchText] = useState('')
-  const [loading, setLoading] = useState(true)
+  const getShowcasePresentation = (course: CourseData) => {
+    const slug = course.slug.toLowerCase()
+    const title = course.title.toLowerCase()
 
-  useEffect(() => {
-    const categorySet = new Set(courseData.map((c) => c.category))
-    setCategories(Array.from(categorySet))
-    setLoading(false)
-  }, [])
-
-  const filteredCourses = courseData.filter((course) => {
-    const matchesCategory = selectedCategory ? course.category === selectedCategory : true
-    const matchesSearch = course.title.toLowerCase().includes(searchText.toLowerCase())
-    return matchesCategory && matchesSearch
-  })
-
-  const mapCourseToCard = (course: CourseData) => {
-    const slug = (course.slug ?? '').toLowerCase()
-    const title = (course.title ?? '').toLowerCase()
-
-    const thumbnailLookup: Record<string, string> = {
-      'html-tutorial': 'html.png',
-      'css-tutorial': 'css.png',
-      'javascript-tutorial': 'javascript.png',
-      'python-tutorial': 'python.png',
+    if (slug.includes('html') || title.includes('html')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+        icon: <BookOpen className="h-6 w-6 text-white" />,
+      }
     }
 
-    let thumbnail = 'placeholder.png'
-
-    if (thumbnailLookup[slug]) {
-      thumbnail = thumbnailLookup[slug]
-    } else if (title.includes('javascript')) {
-      thumbnail = 'javascript.png'
-    } else if (title.includes('python')) {
-      thumbnail = 'python.png'
-    } else if (title.includes('css')) {
-      thumbnail = 'css.png'
-    } else if (title.includes('html')) {
-      thumbnail = 'html.png'
+    if (slug.includes('css') || title.includes('css')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
+        icon: <Lightbulb className="h-6 w-6 text-white" />,
+      }
     }
 
-    const progress = Math.min(Math.max((course.id || 1) * 15 % 100, 5), 95)
+    if (slug.includes('java') || title.includes('java')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
+        icon: <Code2 className="h-6 w-6 text-white" />,
+      }
+    }
+
+    if (slug.includes('python') || title.includes('python')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=80',
+        icon: <Sparkles className="h-6 w-6 text-white" />,
+      }
+    }
 
     return {
-      ...course,
-      imageFilename: thumbnail,
-      description: course.description || 'Get hands-on experience with this course.',
-      lessonsCount: course.lessons.length,
-      progress,
+      image: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1200&q=80',
+      icon: <Award className="h-6 w-6 text-white" />,
     }
   }
 
+  const showcaseCourses = courseData.slice(0, 5).map((course) => {
+    const presentation = getShowcasePresentation(course)
+
+    return {
+      title: course.title,
+      description: course.description || 'Follow the guided lessons and build practical confidence one topic at a time.',
+      image: presentation.image,
+      icon: presentation.icon,
+      link: `/courses/${course.id}`,
+      meta: `${course.difficulty} · ${course.lessons.length} lessons`,
+    }
+  })
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">All Courses</h1>
-          <p className="text-gray-500">Choose from our collection of programming tutorials</p>
-        </div>
-        <div className="w-full md:w-96">
-          <input
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search courses..."
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
-          />
-        </div>
-      </div>
-
-      {/* Category Filter */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setSelectedCategory(null)}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            !selectedCategory
-              ? 'bg-primary-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-          }`}
-        >
-          All
-        </button>
-        {categories.map((category) => (
-          <button
-            key={category}
-            onClick={() => setSelectedCategory(category)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectedCategory === category
-                ? 'bg-primary-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            {category}
-          </button>
-        ))}
-      </div>
-
-      {/* Courses Grid */}
-      {loading ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="h-48 bg-gray-200" />
-              <div className="p-4 space-y-3">
-                <div className="h-4 bg-gray-200 rounded w-3/4" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCourses.map((course) => {
-            const mapped = mapCourseToCard(course)
-            return (
-              <CourseCard
-                key={mapped.id}
-                id={mapped.id}
-                title={mapped.title}
-                difficulty={mapped.difficulty}
-                description={mapped.description}
-                lessons={mapped.lessonsCount}
-                thumbnail={mapped.imageFilename}
-                progress={mapped.progress}
-              />
-            )
-          })}
-        </div>
-      )}
-
-      {!loading && filteredCourses.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">No courses found in this category.</p>
-        </div>
-      )}
+      <InteractiveSelector
+        heading="Explore the course library with momentum"
+        description="Start with a few standout learning paths, then use search and category filters to narrow down the rest of the catalog."
+        items={showcaseCourses}
+      />
     </div>
   )
 }

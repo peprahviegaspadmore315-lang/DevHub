@@ -43,9 +43,8 @@ public class QuizAttempt {
     @Builder.Default
     private Boolean passed = false;
     
-    @Column(columnDefinition = "jsonb")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> answers;
+    @Column(columnDefinition = "TEXT")
+    private String answers;
     
     @Column(name = "started_at")
     private LocalDateTime startedAt;

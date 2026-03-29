@@ -21,6 +21,11 @@ public class UserProfileDTO {
     private String lastName;
     private String avatarUrl;
     private String bio;
+    private String phone;
+    private String location;
+    private String website;
+    private String profession;
+    private String company;
     private UserRole role;
     private Boolean isActive;
     private Boolean emailVerified;

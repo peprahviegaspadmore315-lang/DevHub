@@ -1,40 +1,95 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { lessonsApi, progressApi } from '@/services/api'
+import { OrbitalLoader } from '@/components/ui/orbital-loader'
 import { useLessonRobot } from '@/components/robot'
+import { useAIAssistant } from '@/contexts/AIAssistantContext'
 import TryItYourself from '@/components/editor/TryItYourself'
 import { courseData } from '@/data/courseData'
+import { createCourseTopicSlugMap } from '@/lib/course-topic-slugs'
+import {
+  loadStoredCourseCompletedTopics,
+  loadStoredCourseTopicNotes,
+  saveStoredCourseCompletedTopics,
+  saveStoredCourseTopicNotes,
+} from '@/lib/learning-progress'
+import { useAuthStore } from '@/store'
 import type { Lesson } from '@/types'
 
 const LessonPage = () => {
   const { courseId, lessonId } = useParams()
   const navigate = useNavigate()
+  const { setLearningContext, clearLearningContext } = useAIAssistant()
+  const user = useAuthStore((state) => state.user)
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCodeEditor, setShowCodeEditor] = useState(false)
-  const [topicNotes, setTopicNotes] = useState<Record<string, string>>(() => {
-    if (typeof window === 'undefined') return {}
-    return JSON.parse(localStorage.getItem('lesson_topic_notes') || '{}')
-  })
-  const [completedTopics, setCompletedTopics] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return []
-    return JSON.parse(localStorage.getItem('lesson_completed_topics') || '[]')
-  })
+  const [topicNotes, setTopicNotes] = useState<Record<string, string>>({})
+  const [completedTopics, setCompletedTopics] = useState<string[]>([])
   const [draftTopicNote, setDraftTopicNote] = useState('')
 
+  const courseIdNumber = courseId ? parseInt(courseId, 10) : 0
+  const currentCourse = useMemo(
+    () => courseData.find((course) => course.id === courseIdNumber) || null,
+    [courseIdNumber]
+  )
+  const courseLessons = currentCourse?.lessons || []
+  const topicSlugMap = useMemo(() => createCourseTopicSlugMap(courseLessons), [courseLessons])
   const currentTopic = lesson?.title || ''
+  const currentTopicSlug = useMemo(() => {
+    if (!lesson) {
+      return ''
+    }
+
+    const directSlug = topicSlugMap[lesson.id]
+    if (directSlug) {
+      return directSlug
+    }
+
+    const matchedLesson = courseLessons.find(
+      (courseLesson) => courseLesson.id === lesson.id || courseLesson.title === lesson.title
+    )
+
+    return matchedLesson
+      ? topicSlugMap[matchedLesson.id] || matchedLesson.title.toLowerCase().replace(/\s+/g, '-')
+      : lesson.title.toLowerCase().replace(/\s+/g, '-')
+  }, [courseLessons, lesson, topicSlugMap])
   const { readLesson } = useLessonRobot(lesson)
 
   useEffect(() => {
-    if (currentTopic && topicNotes[currentTopic]) {
-      setDraftTopicNote(topicNotes[currentTopic])
+    const activeNoteKey = currentTopicSlug || currentTopic
+    if (activeNoteKey && topicNotes[activeNoteKey]) {
+      setDraftTopicNote(topicNotes[activeNoteKey])
     } else {
       setDraftTopicNote('')
     }
-  }, [currentTopic, topicNotes])
+  }, [currentTopic, currentTopicSlug, topicNotes])
+
+  useEffect(() => {
+    if (!courseIdNumber || courseLessons.length === 0) {
+      setCompletedTopics([])
+      setTopicNotes({})
+      return
+    }
+
+    setCompletedTopics(
+      loadStoredCourseCompletedTopics({
+        courseId: courseIdNumber,
+        lessons: courseLessons,
+        userId: user?.id,
+      })
+    )
+    setTopicNotes(
+      loadStoredCourseTopicNotes({
+        courseId: courseIdNumber,
+        lessons: courseLessons,
+        userId: user?.id,
+      })
+    )
+  }, [courseIdNumber, courseLessons, user?.id])
 
   // Robot reads lesson when it loads
   useEffect(() => {
@@ -43,20 +98,59 @@ const LessonPage = () => {
     }
   }, [lesson?.id, lesson?.title, readLesson])
 
+  useEffect(() => {
+    if (!lesson) {
+      clearLearningContext()
+      return
+    }
+
+    setLearningContext({
+      source: 'lesson-page',
+      route: window.location.pathname + window.location.search,
+      courseId: lesson.courseId,
+      courseTitle: lesson.courseTitle,
+      topicTitle: lesson.title,
+      topicSummary: lesson.content || '',
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      lessonContent: lesson.content || '',
+      codeExample: lesson.codeExample || '',
+    })
+
+    return () => {
+      clearLearningContext()
+    }
+  }, [clearLearningContext, lesson, setLearningContext])
+
   const saveTopicNotes = (notes: Record<string, string>) => {
     setTopicNotes(notes)
-    localStorage.setItem('lesson_topic_notes', JSON.stringify(notes))
+    saveStoredCourseTopicNotes({
+      courseId: courseIdNumber,
+      lessons: courseLessons,
+      notes,
+      userId: user?.id,
+    })
   }
 
-  const toggleTopicCompletion = (topic: string) => {
-    if (completedTopics.includes(topic)) {
-      const nextList = completedTopics.filter((t) => t !== topic)
+  const toggleTopicCompletion = (topicSlug: string) => {
+    if (completedTopics.includes(topicSlug)) {
+      const nextList = completedTopics.filter((topic) => topic !== topicSlug)
       setCompletedTopics(nextList)
-      localStorage.setItem('lesson_completed_topics', JSON.stringify(nextList))
+      saveStoredCourseCompletedTopics({
+        courseId: courseIdNumber,
+        lessons: courseLessons,
+        topicSlugs: nextList,
+        userId: user?.id,
+      })
     } else {
-      const nextList = [...completedTopics, topic]
+      const nextList = [...completedTopics, topicSlug]
       setCompletedTopics(nextList)
-      localStorage.setItem('lesson_completed_topics', JSON.stringify(nextList))
+      saveStoredCourseCompletedTopics({
+        courseId: courseIdNumber,
+        lessons: courseLessons,
+        topicSlugs: nextList,
+        userId: user?.id,
+      })
     }
   }
 
@@ -102,13 +196,26 @@ const LessonPage = () => {
 
   const handleMarkComplete = async () => {
     if (!lessonId) return
+
+    if (currentTopicSlug && !completedTopics.includes(currentTopicSlug)) {
+      const nextList = [...completedTopics, currentTopicSlug]
+      setCompletedTopics(nextList)
+      saveStoredCourseCompletedTopics({
+        courseId: courseIdNumber,
+        lessons: courseLessons,
+        topicSlugs: nextList,
+        userId: user?.id,
+      })
+    }
+
     try {
       await progressApi.markLessonComplete(parseInt(lessonId))
-      if (lesson?.hasNext && lesson.nextLessonId) {
-        navigate(`/courses/${courseId}/lessons/${lesson.nextLessonId}`)
-      }
     } catch (error) {
       console.error('Failed to mark complete:', error)
+    }
+
+    if (lesson?.hasNext && lesson.nextLessonId) {
+      navigate(`/courses/${courseId}/lessons/${lesson.nextLessonId}`)
     }
   }
 
@@ -134,10 +241,11 @@ const LessonPage = () => {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-8 bg-gray-200 rounded w-1/3" />
-        <div className="h-4 bg-gray-200 rounded w-2/3" />
-        <div className="h-64 bg-gray-200 rounded" />
+      <div className="flex min-h-[60vh] items-center justify-center rounded-[2rem] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50/70 px-6 py-16 dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+        <OrbitalLoader
+          message="Loading your lesson content and getting the reading tools ready..."
+          size="lg"
+        />
       </div>
     )
   }
@@ -259,17 +367,18 @@ const LessonPage = () => {
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <button
                     onClick={() => {
-                      saveTopicNotes({ ...topicNotes, [currentTopic]: draftTopicNote })
+                      const noteKey = currentTopicSlug || currentTopic
+                      saveTopicNotes({ ...topicNotes, [noteKey]: draftTopicNote })
                     }}
                     className="btn btn-sm btn-primary"
                   >
                     Save Note
                   </button>
                   <button
-                    onClick={() => toggleTopicCompletion(currentTopic)}
-                    className={`btn btn-sm ${completedTopics.includes(currentTopic) ? 'btn-success' : 'btn-outline'}`}
+                    onClick={() => toggleTopicCompletion(currentTopicSlug || currentTopic)}
+                    className={`btn btn-sm ${completedTopics.includes(currentTopicSlug || currentTopic) ? 'btn-success' : 'btn-outline'}`}
                   >
-                    {completedTopics.includes(currentTopic) ? 'Completed' : 'Mark Complete'}
+                    {completedTopics.includes(currentTopicSlug || currentTopic) ? 'Completed' : 'Mark Complete'}
                   </button>
                 </div>
               </div>

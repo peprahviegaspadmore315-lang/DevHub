@@ -26,6 +26,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -51,8 +52,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/lessons/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exercises/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/quizzes/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/news/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/certificates/verify/**").permitAll()
                         .requestMatchers("/api/execute/languages").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/code/languages").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/code/status").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/code/run").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/code/validate").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/profile/u/**").permitAll()
                         .requestMatchers("/api/ai/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/courses/*/enroll").authenticated()
@@ -71,14 +77,23 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        configuration.setAllowedOriginPatterns(parseAllowedOrigins());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
-        
+        configuration.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private List<String> parseAllowedOrigins() {
+        return Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .collect(Collectors.toList());
     }
     
     @Bean

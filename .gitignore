@@ -27,3 +27,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+backend/data/
+*.bak
+*.bak*
+*.backup
+*.backup*
+tmp_*
+temp.txt

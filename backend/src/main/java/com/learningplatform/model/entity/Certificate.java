@@ -58,9 +58,8 @@ public class Certificate {
     @Builder.Default
     private CertificateStatus status = CertificateStatus.ACTIVE;
     
-    @Column(columnDefinition = "jsonb")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> metadata;
+    @Column(columnDefinition = "TEXT")
+    private String metadata;
     
     @CreatedDate
     @Column(name = "created_at", updatable = false)

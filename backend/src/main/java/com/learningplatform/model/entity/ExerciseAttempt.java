@@ -42,9 +42,8 @@ public class ExerciseAttempt {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
     
-    @Column(name = "test_results", columnDefinition = "jsonb")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> testResults;
+    @Column(name = "test_results", columnDefinition = "TEXT")
+    private String testResults;
     
     @Column(name = "execution_time_ms")
     private Integer executionTimeMs;

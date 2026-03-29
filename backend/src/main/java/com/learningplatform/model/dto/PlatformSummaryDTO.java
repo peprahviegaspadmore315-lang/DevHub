@@ -1,0 +1,17 @@
+package com.learningplatform.model.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PlatformSummaryDTO {
+    private long courses;
+    private long tutorials;
+    private long exercises;
+    private long users;
+}

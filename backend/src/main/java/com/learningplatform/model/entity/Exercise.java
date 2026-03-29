@@ -55,9 +55,8 @@ public class Exercise {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String solution;
     
-    @Column(name = "test_cases", columnDefinition = "jsonb", nullable = false)
-    @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> testCases;
+    @Column(name = "test_cases", columnDefinition = "TEXT", nullable = false)
+    private String testCases;
     
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
@@ -67,8 +66,8 @@ public class Exercise {
     @Builder.Default
     private Integer points = 10;
     
-    @Column(columnDefinition = "TEXT[]")
-    private String[] hints;
+    @Column(columnDefinition = "TEXT")
+    private String hints;
     
     @Column(columnDefinition = "TEXT")
     private String constraints;

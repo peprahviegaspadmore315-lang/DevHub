@@ -1,4 +1,6 @@
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/api\/?$/, '');
+import { useAuthStore } from '@/store';
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
 
 export function getApiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
@@ -6,7 +8,7 @@ export function getApiUrl(path: string): string {
 }
 
 export function getHeaders(): HeadersInit {
-  const token = localStorage.getItem('accessToken');
+  const token = useAuthStore.getState().accessToken;
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),

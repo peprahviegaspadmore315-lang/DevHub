@@ -2,9 +2,15 @@ import axios from 'axios'
 import { useAuthStore } from '@/store'
 import type {
   AuthResponse,
+  PasswordResetInitiateResponse,
+  PasswordResetVerifyResponse,
+  FeedbackRequest,
+  FeedbackResponse,
   LoginRequest,
+  ProgrammingNewsResponse,
   RegisterRequest,
   Course,
+  PlatformSummary,
   Lesson,
   Exercise,
   Quiz,
@@ -18,7 +24,21 @@ import type {
   ExerciseSubmitResponse,
 } from '@/types'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+const normalizeApiBaseUrl = (rawBaseUrl?: string) => {
+  const baseUrl = (rawBaseUrl || '/api').trim().replace(/\/+$/, '')
+
+  if (baseUrl === '' || baseUrl === '/api') {
+    return '/api'
+  }
+
+  if (baseUrl.endsWith('/api')) {
+    return baseUrl
+  }
+
+  return `${baseUrl}/api`
+}
+
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -82,6 +102,40 @@ export const authApi = {
   
   me: () =>
     api.get('/auth/me'),
+  
+  forgotPassword: (email: string) =>
+    api.post<PasswordResetInitiateResponse>('/auth/forgot-password', { email }),
+
+  verifyResetCode: (email: string, code: string) =>
+    api.post<PasswordResetVerifyResponse>('/auth/verify-reset-code', { email, code }),
+  
+  resetPassword: (email: string, code: string, newPassword: string) =>
+    api.post('/auth/reset-password', { email, code, newPassword }),
+  
+  googleAuth: () =>
+    api.get('/auth/oauth/google'),
+  
+  googleCallback: (code: string) =>
+    api.get('/auth/oauth/google/authorize', { params: { code } }),
+  
+  githubAuth: () =>
+    api.get('/auth/oauth/github'),
+  
+  githubCallback: (code: string) =>
+    api.get('/auth/oauth/github/authorize', { params: { code } }),
+  
+  biometricLogin: (deviceId: string, signature: string, email?: string) =>
+    api.post<AuthResponse>('/auth/biometric', { deviceId, signature, email }),
+}
+
+export const feedbackApi = {
+  submit: (data: FeedbackRequest) =>
+    api.post<FeedbackResponse>('/feedback', data),
+}
+
+export const newsApi = {
+  getProgrammingNews: (params?: { limit?: number }) =>
+    api.get<ProgrammingNewsResponse>('/news/programming', { params }),
 }
 
 // Courses API
@@ -97,6 +151,9 @@ export const coursesApi = {
   
   getFeatured: () =>
     api.get<Course[]>('/courses/featured'),
+
+  getSummary: () =>
+    api.get<PlatformSummary>('/courses/summary'),
   
   getCategories: () =>
     api.get<string[]>('/courses/categories'),
@@ -159,10 +216,13 @@ export const quizzesApi = {
 // Code Execution API
 export const codeExecutionApi = {
   execute: (data: CodeExecutionRequest) =>
-    api.post<CodeExecutionResponse>('/execute', data),
+    api.post<CodeExecutionResponse>('/code/run', {
+      ...data,
+      language: data.language.toUpperCase(),
+    }),
   
   getLanguages: () =>
-    api.get<{ id: number; name: string; version: string }[]>('/execute/languages'),
+    api.get<{ id: string; name: string; extension: string; requiresExecution: boolean; available: boolean }[]>('/code/languages'),
 }
 
 // Progress API

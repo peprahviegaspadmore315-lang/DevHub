@@ -6,6 +6,8 @@ import com.learningplatform.repository.QuizRepository;
 import com.learningplatform.repository.QuizAttemptRepository;
 import com.learningplatform.repository.UserRepository;
 import com.learningplatform.service.QuizService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,6 +105,12 @@ public class QuizServiceImpl implements QuizService {
 
         Map<String, Object> answersMap = new HashMap<>();
         answers.forEach((k, v) -> answersMap.put(k.toString(), v));
+        String answersJson = "{}";
+        try {
+            answersJson = new ObjectMapper().writeValueAsString(answersMap);
+        } catch (JsonProcessingException e) {
+            answersJson = "{}";
+        }
 
         QuizAttempt attempt = QuizAttempt.builder()
                 .user(user)
@@ -111,7 +119,7 @@ public class QuizServiceImpl implements QuizService {
                 .totalPoints(totalPoints)
                 .earnedPoints(earnedPoints)
                 .passed(passed)
-                .answers(answersMap)
+                .answers(answersJson)
                 .startedAt(LocalDateTime.now().minusMinutes(quiz.getTimeLimitMinutes() != null ? quiz.getTimeLimitMinutes() : 0))
                 .completedAt(LocalDateTime.now())
                 .build();

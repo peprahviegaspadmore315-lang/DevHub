@@ -23,29 +23,35 @@ JWT_SECRET=your_random_secret_key_at_least_256_bits
 # Optional (with defaults)
 DB_PASSWORD=postgres
 AI_ENABLED=true
-GEMINI_MODEL=gemini-1.5-flash
+AI_PROVIDER=gemini
+AI_OPENAI_URL=https://api.openai.com/v1/responses
+AI_MODEL=gpt-5.4
 ```
 
 ### 3. Get API Keys
 
-**Gemini API Key:**
-1. Go to https://aistudio.google.com/apikey
-2. Create an API key
-3. Copy to GEMINI_API_KEY in .env
-
-**OpenAI API Key (alternative):**
+**OpenAI API Key (recommended):**
 1. Go to https://platform.openai.com/api-keys
 2. Create a new API key
-3. Copy to OPENAI_API_KEY in .env
+3. Copy it to `OPENAI_API_KEY` in `.env`
+4. Set `AI_PROVIDER=openai` if you want to use OpenAI instead of Gemini
+
+**Gemini API Key (recommended free-tier option):**
+1. Go to https://aistudio.google.com/apikey
+2. Create an API key
+3. Copy it to `GEMINI_API_KEY` in `.env`
+4. Keep `AI_PROVIDER=gemini`
 
 ### 4. Run the Application
 
+If you use the desktop shortcut or `OPEN_LOCAL_APP.cmd`, the launcher now loads `backend/.env` automatically before it starts the backend.
+
 ```bash
-# Load environment variables and start
+# Manual startup
 export $(cat .env | xargs) && mvn spring-boot:run
 
 # Or use Maven with environment variables
-JWT_SECRET=your_secret GEMINI_API_KEY=your_key mvn spring-boot:run
+JWT_SECRET=your_secret GEMINI_API_KEY=your_key AI_PROVIDER=gemini mvn spring-boot:run
 ```
 
 ---
@@ -56,12 +62,12 @@ JWT_SECRET=your_secret GEMINI_API_KEY=your_key mvn spring-boot:run
 - Store secrets in `.env` file (excluded from git)
 - Use strong, random JWT secrets (256+ bits)
 - Rotate API keys periodically
-- Use different configs for dev/staging/prod
+- Use different configs for dev, staging, and production
 
 ### DON'T ❌
 - Commit `.env` files to version control
 - Hardcode secrets in source code
-- Share API keys via chat/email
+- Share API keys via chat or email
 - Use weak JWT secrets
 
 ---
@@ -70,15 +76,17 @@ JWT_SECRET=your_secret GEMINI_API_KEY=your_key mvn spring-boot:run
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GEMINI_API_KEY` | Yes* | - | Google Gemini API key |
 | `OPENAI_API_KEY` | Yes* | - | OpenAI API key |
+| `GEMINI_API_KEY` | Yes* | - | Google Gemini API key |
 | `JWT_SECRET` | Yes | - | JWT signing secret |
 | `DB_PASSWORD` | No | postgres | Database password |
 | `AI_ENABLED` | No | true | Enable AI features |
-| `AI_PROVIDER` | No | gemini | AI provider: `gemini` or `openai` |
+| `AI_PROVIDER` | No | gemini | AI provider: `openai` or `gemini` |
+| `AI_OPENAI_URL` | No | `https://api.openai.com/v1/responses` | OpenAI endpoint |
+| `AI_MODEL` | No | `gpt-5.4` | OpenAI model |
 | `CORS_ALLOWED_ORIGINS` | No | localhost:5173,3000 | Allowed frontend URLs |
 
-*At least one AI API key is required for chat functionality
+*At least one real AI API key is required for live chat functionality
 
 ---
 
@@ -88,7 +96,7 @@ For production, use proper secret management:
 
 ### Docker
 ```bash
-docker run -e GEMINI_API_KEY=your_key \
+docker run -e OPENAI_API_KEY=your_key \
            -e JWT_SECRET=your_secret \
            -e DB_PASSWORD=your_db_pass \
            learning-platform:latest
@@ -103,14 +111,14 @@ metadata:
   name: learning-platform-secrets
 type: Opaque
 stringData:
-  GEMINI_API_KEY: your_key
+  OPENAI_API_KEY: your_key
   JWT_SECRET: your_secret
 ```
 
 ### Environment File (Production)
 Never commit this file!
 ```env
-GEMINI_API_KEY=actual_key_here
+OPENAI_API_KEY=actual_key_here
 JWT_SECRET=actual_secret_here
 DB_PASSWORD=actual_password_here
 ```

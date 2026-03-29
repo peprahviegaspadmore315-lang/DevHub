@@ -2,11 +2,14 @@ package com.learningplatform.model.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
 
 @Data
 @Builder
@@ -27,4 +30,8 @@ public class RegisterRequest {
     
     private String firstName;
     private String lastName;
+    private String location;
+
+    @Past(message = "Date of birth must be in the past")
+    private LocalDate dateOfBirth;
 }

@@ -1,15 +1,154 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuthStore } from '@/store'
-import { certificatesApi, enrollmentsApi, coursesApi } from '@/services/api'
-import { courseData } from '@/data/courseData'
-import type { Enrollment, Certificate, Course } from '@/types'
+import { useEffect, useState } from "react"
+import {
+  Award,
+  BookOpen,
+  Code2,
+  Compass,
+  PlayCircle,
+  Sparkles,
+  TrendingUp,
+  User,
+} from "lucide-react"
 
-interface LeaderboardEntry {
-  id: string
-  username: string
-  xp: number
-  avatar?: string
+import { OrbitalLoader } from "@/components/ui/orbital-loader"
+import { courseData } from "@/data/courseData"
+import {
+  DevHubDashboardContent,
+  type DashboardAction,
+  type DashboardActivity,
+  type DashboardStat,
+  type DashboardTrack,
+} from "@/components/ui/dashboard-with-collapsible-sidebar"
+import { createCourseTopicSlugMap } from "@/lib/course-topic-slugs"
+import {
+  countStoredNotes,
+  getSavedPracticeItemsCount,
+  loadStoredCourseCompletedTopics,
+  loadStoredCourseTopicNotes,
+} from "@/lib/learning-progress"
+import { certificatesApi, coursesApi, enrollmentsApi, progressApi } from "@/services/api"
+import { useAuthStore } from "@/store"
+import type { Certificate, Course, Enrollment, UserProgress } from "@/types"
+
+type DashboardTone = "blue" | "emerald" | "violet" | "amber" | "rose"
+
+interface ProgressStatsSnapshot {
+  totalLessonsCompleted: number
+  totalTimeSpent: number
+  exercisesCompleted: number
+  totalPoints: number
+  quizzesPassed: number
+  averageQuizScore: number
+  certificatesEarned: number
+}
+
+const EMPTY_PROGRESS_STATS: ProgressStatsSnapshot = {
+  totalLessonsCompleted: 0,
+  totalTimeSpent: 0,
+  exercisesCompleted: 0,
+  totalPoints: 0,
+  quizzesPassed: 0,
+  averageQuizScore: 0,
+  certificatesEarned: 0,
+}
+
+const buildFallbackCourses = (): Course[] =>
+  courseData.map((course, index) => ({
+    id: course.id,
+    title: course.title,
+    slug: course.slug,
+    description: course.description,
+    category: course.category,
+    difficulty: course.difficulty,
+    iconUrl: course.image,
+    bannerUrl: course.image,
+    isPremium: false,
+    price: 0,
+    estimatedHours: Math.max(1, Math.round(course.lessons.length * 0.25 * 10) / 10),
+    orderIndex: index + 1,
+    isPublished: true,
+    isFeatured: index < 3,
+    lessonsCount: course.lessons.length,
+    exercisesCount: course.lessons.length,
+    quizzesCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }))
+
+const formatShortDate = (value?: string) => {
+  if (!value) {
+    return "Recently"
+  }
+
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  })
+}
+
+const clampPercentage = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
+
+const getCourseTone = (slug?: string, title?: string): DashboardTone => {
+  const normalized = `${slug || ""} ${title || ""}`.toLowerCase()
+
+  if (normalized.includes("python")) return "violet"
+  if (normalized.includes("java")) return "amber"
+  if (normalized.includes("css")) return "emerald"
+  if (normalized.includes("html")) return "blue"
+
+  return "rose"
+}
+
+const getPerformanceSignal = ({
+  progress,
+  notesCount,
+  averageQuizScore,
+  exercisesCompleted,
+  isComplete,
+}: {
+  progress: number
+  notesCount: number
+  averageQuizScore: number
+  exercisesCompleted: number
+  isComplete: boolean
+}) => {
+  if (isComplete) {
+    return {
+      label: "Mastered",
+      detail: averageQuizScore > 0 ? `${Math.round(averageQuizScore)}% quiz average` : "All tracked topics completed",
+    }
+  }
+
+  if (averageQuizScore >= 80 || (progress >= 70 && exercisesCompleted >= 3)) {
+    return {
+      label: "High mastery",
+      detail: averageQuizScore > 0 ? `${Math.round(averageQuizScore)}% quiz average` : "Strong hands-on practice",
+    }
+  }
+
+  if (progress >= 35 || notesCount >= 2 || exercisesCompleted > 0) {
+    return {
+      label: "Building momentum",
+      detail:
+        notesCount > 0
+          ? `${notesCount} topic note${notesCount === 1 ? "" : "s"} saved`
+          : exercisesCompleted > 0
+            ? `${exercisesCompleted} completed exercise${exercisesCompleted === 1 ? "" : "s"}`
+            : "Steady learning rhythm",
+    }
+  }
+
+  if (progress > 0) {
+    return {
+      label: "Early momentum",
+      detail: "The path is started and ready to continue",
+    }
+  }
+
+  return {
+    label: "Ready to start",
+    detail: "No tracked performance signal yet",
+  }
 }
 
 const DashboardPage = () => {
@@ -17,295 +156,355 @@ const DashboardPage = () => {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  const [courseProgressByCourseId, setCourseProgressByCourseId] = useState<Record<number, UserProgress[]>>({})
+  const [progressStats, setProgressStats] = useState<ProgressStatsSnapshot>(EMPTY_PROGRESS_STATS)
+  const [savedPracticeCount, setSavedPracticeCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [currentStreak] = useState(1)
-  const [totalXP] = useState(350)
-  const [leaderboard] = useState<LeaderboardEntry[]>([
-    { id: '1', username: 'ChillCat19', xp: 1800, avatar: '🐱' },
-    { id: '2', username: user?.username || 'You', xp: 350, avatar: '👤' },
-    { id: '3', username: 'AussieMike', xp: 1500, avatar: '🦘' },
-  ])
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true)
+
       try {
-        const [enrollmentsRes, certificatesRes, coursesRes] = await Promise.all([
+        const [enrollmentsRes, certificatesRes, coursesRes, statsRes] = await Promise.allSettled([
           enrollmentsApi.getUserEnrollments(),
           certificatesApi.getAll(),
           coursesApi.getAll(),
+          progressApi.getStats(),
         ])
-        setEnrollments(enrollmentsRes.data)
-        setCertificates(certificatesRes.data)
-        setCourses(coursesRes.data)
+
+        const nextEnrollments =
+          enrollmentsRes.status === "fulfilled" ? enrollmentsRes.value.data : []
+        const nextCertificates =
+          certificatesRes.status === "fulfilled" ? certificatesRes.value.data : []
+        const nextCourses =
+          coursesRes.status === "fulfilled" && coursesRes.value.data.length > 0
+            ? coursesRes.value.data
+            : buildFallbackCourses()
+
+        setEnrollments(nextEnrollments)
+        setCertificates(nextCertificates)
+        setCourses(nextCourses)
+        setProgressStats(
+          statsRes.status === "fulfilled"
+            ? { ...EMPTY_PROGRESS_STATS, ...statsRes.value.data }
+            : EMPTY_PROGRESS_STATS
+        )
+        setSavedPracticeCount(getSavedPracticeItemsCount(user?.id))
+
+        const progressResponses = await Promise.allSettled(
+          courseData.slice(0, 4).map((course) => progressApi.getCourseProgress(course.id))
+        )
+
+        const nextCourseProgress = courseData.slice(0, 4).reduce<Record<number, UserProgress[]>>(
+          (acc, course, index) => {
+            const response = progressResponses[index]
+            acc[course.id] = response?.status === "fulfilled" ? response.value.data : []
+            return acc
+          },
+          {}
+        )
+
+        setCourseProgressByCourseId(nextCourseProgress)
       } catch (error) {
-        console.error('Failed to fetch dashboard data:', error)
+        console.error("Failed to fetch dashboard data, using fallback:", error)
+        setCourses(buildFallbackCourses())
+        setProgressStats(EMPTY_PROGRESS_STATS)
+        setCourseProgressByCourseId({})
+        setSavedPracticeCount(getSavedPracticeItemsCount(user?.id))
       } finally {
         setLoading(false)
       }
     }
+
     fetchData()
-  }, [])
-
-  const completedCourses = enrollments
-    .filter((e) => e.completionPercentage >= 100)
-    .map((e) => courses.find((c) => c.id === e.courseId))
-    .filter((c): c is Course => !!c)
-
-  const recommendedTutorials = courseData
-    .filter((course) => !enrollments.some((e) => e.courseId === course.id))
-    .slice(0, 4)
+  }, [user?.id])
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="text-gray-600">Loading dashboard...</div>
+      <div className="flex min-h-[60vh] items-center justify-center rounded-[2rem] border border-sky-100 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_42%),linear-gradient(180deg,#f8fbff_0%,#ffffff_58%,#f2f8ff_100%)] px-6 py-16 shadow-[0_30px_70px_-50px_rgba(14,165,233,0.5)] dark:border-sky-900/40 dark:bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.18),transparent_32%),linear-gradient(180deg,#020617_0%,#0f172a_58%,#111827_100%)]">
+        <OrbitalLoader
+          message="Loading your dashboard, progress signals, and active learning paths..."
+          size="lg"
+        />
       </div>
     )
   }
 
-  const stats = {
-    coursesEnrolled: enrollments.length,
-    coursesCompleted: completedCourses.length,
-    certificatesEarned: certificates.length,
-    exercises: 18,
-    quizzes: 0,
-    challenges: 0,
-    lessons: 20,
-    totalProgress: enrollments.length > 0
-      ? Math.round(enrollments.reduce((acc, e) => acc + e.completionPercentage, 0) / enrollments.length)
-      : 0,
-  }
+  const allCourses = courses.length > 0 ? courses : buildFallbackCourses()
+  const courseMap = new Map(allCourses.map((course) => [course.id, course]))
+  const activeEnrollments = enrollments.filter((enrollment) => enrollment.completionPercentage < 100)
+  const completedEnrollments = enrollments.filter((enrollment) => enrollment.completionPercentage >= 100)
 
-  const getStreakDays = () => {
-    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-    const today = new Date().getDay()
-    return days.map((day, idx) => ({
-      day,
-      active: idx < today,
+  const tracks: DashboardTrack[] = courseData.slice(0, 4).map((localCourse) => {
+    const apiCourse = courseMap.get(localCourse.id)
+    const enrollment = enrollments.find((item) => item.courseId === localCourse.id)
+    const progressEntries = courseProgressByCourseId[localCourse.id] || []
+    const lessonSlugMap = createCourseTopicSlugMap(localCourse.lessons)
+    const completedTopics = new Set(
+      loadStoredCourseCompletedTopics({
+        courseId: localCourse.id,
+        lessons: localCourse.lessons,
+        userId: user?.id,
+      })
+    )
+    const storedNotes = loadStoredCourseTopicNotes({
+      courseId: localCourse.id,
+      lessons: localCourse.lessons,
+      userId: user?.id,
+    })
+    const completedLessonIds = new Set(
+      progressEntries
+        .filter((entry) => entry.status === "COMPLETED" || entry.completionPercentage >= 100)
+        .map((entry) => entry.lessonId)
+        .filter((lessonId): lessonId is number => typeof lessonId === "number")
+    )
+
+    localCourse.lessons.forEach((lesson) => {
+      if (completedLessonIds.has(lesson.id)) {
+        completedTopics.add(
+          lessonSlugMap[lesson.id] || lesson.title.toLowerCase().replace(/\s+/g, "-")
+        )
+      }
+    })
+
+    const totalTopics = localCourse.lessons.length || apiCourse?.lessonsCount || 0
+    const approximateCompletedCount =
+      totalTopics > 0 && enrollment
+        ? Math.round((enrollment.completionPercentage / 100) * totalTopics)
+        : 0
+    const completedCount = Math.min(
+      totalTopics,
+      Math.max(completedTopics.size, completedLessonIds.size, approximateCompletedCount)
+    )
+    const progress = totalTopics > 0 ? clampPercentage((completedCount / totalTopics) * 100) : 0
+    const nextLesson = localCourse.lessons.find((lesson) => {
+      const lessonSlug = lessonSlugMap[lesson.id] || lesson.title.toLowerCase().replace(/\s+/g, "-")
+      return !completedTopics.has(lessonSlug) && !completedLessonIds.has(lesson.id)
+    })
+    const performance = getPerformanceSignal({
+      progress,
+      notesCount: countStoredNotes(storedNotes),
+      averageQuizScore: progressStats.averageQuizScore,
+      exercisesCompleted: progressStats.exercisesCompleted,
+      isComplete: totalTopics > 0 && completedCount >= totalTopics,
+    })
+    const href = nextLesson
+      ? `/courses/${localCourse.id}?topic=${lessonSlugMap[nextLesson.id] || nextLesson.title.toLowerCase().replace(/\s+/g, "-")}`
+      : `/courses/${localCourse.id}`
+
+    return {
+      title: apiCourse?.title || localCourse.title,
+      description:
+        apiCourse?.description ||
+        localCourse.description ||
+        "Continue where you left off and keep building your skill path.",
+      progress,
+      href,
+      meta: `${totalTopics} topics · ${localCourse.difficulty.toLowerCase()}`,
+      completedLabel: `${completedCount}/${totalTopics} topics covered`,
+      nextStep: nextLesson
+        ? `Next topic: ${nextLesson.title}`
+        : "All tracked topics in this path are covered",
+      performanceLabel: performance.label,
+      performanceDetail: performance.detail,
+      cta: progress >= 100 ? "Review path" : progress > 0 ? "Resume path" : "Start path",
+      tone: getCourseTone(apiCourse?.slug || localCourse.slug, apiCourse?.title || localCourse.title),
+    }
+  })
+
+  const trackedPaths = tracks.filter((track) => track.progress > 0)
+  const activePathCount = tracks.filter((track) => track.progress > 0 && track.progress < 100).length
+  const averageProgress = trackedPaths.length
+    ? Math.round(trackedPaths.reduce((total, track) => total + track.progress, 0) / trackedPaths.length)
+    : 0
+  const totalTopicsCovered = tracks.reduce((total, track) => {
+    const completedCount = Number.parseInt(track.completedLabel?.split("/")[0] || "0", 10)
+    return total + (Number.isFinite(completedCount) ? completedCount : 0)
+  }, 0)
+  const totalXP =
+    totalTopicsCovered * 18 +
+    progressStats.totalPoints +
+    progressStats.quizzesPassed * 35 +
+    certificates.length * 120
+  const practiceSessions = savedPracticeCount + progressStats.exercisesCompleted
+  const primaryActiveCourseHref =
+    trackedPaths[0]?.href ||
+    (activeEnrollments[0] ? `/courses/${activeEnrollments[0].courseId}` : "/courses")
+
+  const stats: DashboardStat[] = [
+    {
+      title: "Learning XP",
+      value: `${totalXP}`,
+      helper:
+        totalTopicsCovered > 0
+          ? `${totalTopicsCovered} core topics covered, ${progressStats.exercisesCompleted} completed exercise${progressStats.exercisesCompleted === 1 ? "" : "s"}, and ${progressStats.quizzesPassed} quiz pass${progressStats.quizzesPassed === 1 ? "" : "es"}.`
+          : "Start a course to begin earning XP and build your DevHub momentum.",
+      href: primaryActiveCourseHref,
+      cta: totalTopicsCovered > 0 ? "Keep earning XP" : "Start earning",
+      badgeLabel: totalTopicsCovered > 0 ? "Growing" : "Starter",
+      icon: TrendingUp,
+      tone: "blue",
+    },
+    {
+      title: "Active Paths",
+      value: `${Math.max(activePathCount, activeEnrollments.length)}`,
+      helper:
+        Math.max(activePathCount, activeEnrollments.length) > 0
+          ? `${Math.max(activePathCount, activeEnrollments.length)} learning path${Math.max(activePathCount, activeEnrollments.length) === 1 ? "" : "s"} are active and ready for the next topic.`
+          : "No active courses yet. Browse a path and start learning.",
+      href: primaryActiveCourseHref,
+      cta: Math.max(activePathCount, activeEnrollments.length) > 0 ? "Continue paths" : "Browse courses",
+      badgeLabel: Math.max(activePathCount, activeEnrollments.length) > 0 ? "In Progress" : "Ready",
+      icon: BookOpen,
+      tone: "emerald",
+    },
+    {
+      title: "Certificates",
+      value: `${certificates.length}`,
+      helper:
+        certificates.length > 0
+          ? "Keep building your verified achievements and showcase them on your profile."
+          : "Complete a course to unlock your first DevHub certificate.",
+      href: "/profile?tab=certificates",
+      cta: certificates.length > 0 ? "View certificates" : "See goal",
+      badgeLabel: certificates.length > 0 ? "Earned" : "Locked",
+      icon: Award,
+      tone: "violet",
+    },
+    {
+      title: "Practice Sessions",
+      value: `${practiceSessions}`,
+      helper:
+        practiceSessions > 0
+          ? `Built from ${savedPracticeCount} saved editor draft${savedPracticeCount === 1 ? "" : "s"} and ${progressStats.exercisesCompleted} completed exercise${progressStats.exercisesCompleted === 1 ? "" : "s"}.`
+          : "Open the editor to start practicing and build hands-on confidence.",
+      href: "/editor",
+      cta: practiceSessions > 0 ? "Practice now" : "Open editor",
+      badgeLabel: practiceSessions > 0 ? "Hands-On" : "Ready",
+      icon: Code2,
+      tone: "amber",
+    },
+  ]
+
+  const enrollmentActivities: DashboardActivity[] = [...enrollments]
+    .sort((a, b) => new Date(b.enrolledAt).getTime() - new Date(a.enrolledAt).getTime())
+    .slice(0, 3)
+    .map((enrollment) => {
+      const course = courseMap.get(enrollment.courseId) || courseData.find((item) => item.id === enrollment.courseId)
+      const courseTitle = course?.title || "Course"
+      const isCompleted = enrollment.completionPercentage >= 100
+
+      return {
+        title: isCompleted ? `Completed ${courseTitle}` : `Progress updated in ${courseTitle}`,
+        description: isCompleted
+          ? "This learning path is complete and ready for review."
+          : `${enrollment.completionPercentage}% complete so far`,
+        time: formatShortDate(enrollment.completedAt || enrollment.enrolledAt),
+        icon: isCompleted ? Award : PlayCircle,
+        tone: isCompleted ? "emerald" : "blue",
+        href: `/courses/${enrollment.courseId}`,
+      }
+    })
+
+  const certificateActivities: DashboardActivity[] = [...certificates]
+    .sort((a, b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime())
+    .slice(0, 2)
+    .map((certificate) => ({
+      title: "Certificate earned",
+      description: certificate.courseName,
+      time: formatShortDate(certificate.issuedDate),
+      icon: Award,
+      tone: "amber",
+      href: "/profile?tab=certificates",
     }))
-  }
+
+  const localProgressActivities: DashboardActivity[] = tracks
+    .filter((track) => track.progress > 0)
+    .slice(0, 3)
+    .map((track) => ({
+      title: `Progress saved in ${track.title}`,
+      description: track.nextStep || track.completedLabel || "Your next topic is ready.",
+      time: `${track.progress}%`,
+      icon: track.progress >= 100 ? Award : PlayCircle,
+      tone: track.progress >= 100 ? "emerald" : "blue",
+      href: track.href,
+    }))
+
+  const activities: DashboardActivity[] =
+    [...certificateActivities, ...enrollmentActivities].slice(0, 5).length > 0
+      ? [...certificateActivities, ...enrollmentActivities].slice(0, 5)
+      : localProgressActivities.length > 0
+        ? localProgressActivities
+        : [
+            {
+              title: "Explore your first learning path",
+              description: "Pick a course and your progress feed will start updating here.",
+              time: "Now",
+              icon: Compass,
+              tone: "blue",
+              href: "/courses",
+            },
+            {
+              title: "Practice with the built-in editor",
+              description: "Run examples and test your ideas without leaving DevHub.",
+              time: "Today",
+              icon: Code2,
+              tone: "violet",
+              href: "/editor",
+            },
+          ]
+
+  const actions: DashboardAction[] = [
+    {
+      title: "Explore Tutorials",
+      description: "Jump into topic-by-topic lessons, examples, and references.",
+      href: "/topics",
+      cta: "Open tutorials",
+      icon: Compass,
+    },
+    {
+      title: "Browse Courses",
+      description: "Choose a course and continue your structured learning path.",
+      href: "/courses",
+      cta: "View courses",
+      icon: BookOpen,
+    },
+    {
+      title: "Practice in Editor",
+      description: "Write code, test examples, and build confidence with hands-on work.",
+      href: "/editor",
+      cta: "Launch editor",
+      icon: Code2,
+    },
+    {
+      title: "Update Profile",
+      description: "Keep your DevHub learner profile and public page up to date.",
+      href: "/profile",
+      cta: "Open profile",
+      icon: User,
+    },
+  ]
+
+  const notificationCount = activePathCount + Math.min(certificates.length, 3)
+  const learnerName = user?.firstName || user?.username || "Learner"
+  const subtitle =
+    trackedPaths.length > 0
+      ? `You have covered ${totalTopicsCovered} topics across ${trackedPaths.length} core path${trackedPaths.length === 1 ? "" : "s"}, and your current learning average sits at ${averageProgress}%${progressStats.averageQuizScore > 0 ? ` with a ${Math.round(progressStats.averageQuizScore)}% quiz average.` : "."}`
+      : completedEnrollments.length > 0
+        ? `You have completed ${completedEnrollments.length} course${completedEnrollments.length === 1 ? "" : "s"} already. Keep the momentum going with your next lesson, practice session, or course.`
+        : "Track your tutorials, course progress, coding practice, and profile growth from one place."
 
   return (
-    <div className="space-y-6 text-slate-900 dark:text-slate-100">
-      {/* Welcome Header with Stats */}
-      <div className="card p-6 bg-gradient-to-r from-primary-600 to-primary-800 text-white">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Hi!</h1>
-            <p className="text-primary-100">Welcome back to your learning journey</p>
-          </div>
-          <span className="text-4xl">👋</span>
-        </div>
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-white">
-          <div>
-            <p className="text-2xl font-bold">{totalXP}</p>
-            <p className="text-sm text-primary-100">Total XP</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{stats.lessons}</p>
-            <p className="text-sm text-primary-100">Lessons</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{stats.exercises}</p>
-            <p className="text-sm text-primary-100">Exercises</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{stats.quizzes}</p>
-            <p className="text-sm text-primary-100">Quizzes</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Leaderboard & Streak */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Leaderboard */}
-          <div className="card p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">🏆 League</h2>
-              <Link to="#" className="text-primary-600 hover:text-primary-700 text-sm font-medium">
-                View All
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {leaderboard.map((entry, idx) => (
-                <div key={entry.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition">
-                  <span className="text-lg font-bold text-gray-400 w-6">{idx + 1}</span>
-                  <span className="text-2xl">{entry.avatar}</span>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{entry.username}</p>
-                    <p className="text-xs text-gray-500">{entry.xp} XP</p>
-                  </div>
-                  {idx === 1 && <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded font-medium">You</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Streak */}
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">🔥 Current Streak</h3>
-            <p className="text-3xl font-bold text-orange-500 mb-4">{currentStreak} days</p>
-            <div className="flex gap-2">
-              {getStreakDays().map((item, idx) => (
-                <div
-                  key={idx}
-                  className={`flex-1 h-12 rounded-lg flex items-center justify-center font-semibold text-sm transition ${
-                    item.active
-                      ? 'bg-orange-400 text-white'
-                      : 'bg-gray-200 text-gray-400'
-                  }`}
-                >
-                  {item.day}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Learning Progress & Quick Actions */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Completed Courses */}
-          <div className="card p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">✅ Completed Courses</h2>
-            {completedCourses.length === 0 ? (
-              <p className="text-sm text-gray-500">You haven't completed any courses yet. Keep going!</p>
-            ) : (
-              <ul className="space-y-2">
-                {completedCourses.map((course) => (
-                  <li key={course.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2">
-                    <span className="text-sm text-gray-700">{course.title}</span>
-                    <span className="text-xs text-green-600 font-semibold">Completed</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Overall Progress */}
-          <div className="card p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">📈 Learning Progress</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Total Enrolled</span>
-                <span>{stats.coursesEnrolled}</span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Total Completed</span>
-                <span>{stats.coursesCompleted}</span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Total Certificates</span>
-                <span>{stats.certificatesEarned}</span>
-              </div>
-              <div className="mt-2 h-3 rounded-full bg-gray-200 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-primary-500 to-emerald-500" style={{ width: `${stats.totalProgress}%` }} />
-              </div>
-              <p className="text-xs text-gray-500">Overall progress: {stats.totalProgress}%</p>
-            </div>
-          </div>
-
-          {/* Recommended Tutorials */}
-          <div className="card p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">🌟 Recommended Tutorials</h2>
-            <div className="grid grid-cols-1 gap-2">
-              {recommendedTutorials.map((course) => (
-                <Link
-                  key={course.id}
-                  to={`/courses/${course.id}`}
-                  className="block rounded-lg border border-gray-200 p-3 hover:border-primary-500 hover:bg-white transition"
-                >
-                  <h4 className="text-sm font-semibold text-gray-900">{course.title}</h4>
-                  <p className="text-xs text-gray-500">{course.description}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Access Cards */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">My Learning</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <Link
-                to="/courses"
-                className="card p-6 hover:shadow-lg transition flex flex-col items-center justify-center text-center"
-              >
-                <span className="text-5xl mb-3">💪</span>
-                <h3 className="font-semibold text-gray-900 mb-1">Exercises</h3>
-                <p className="text-2xl font-bold text-primary-600">{stats.exercises}</p>
-                <p className="text-xs text-gray-500 mt-1">0%</p>
-              </Link>
-
-              <div className="card p-6 hover:shadow-lg transition flex flex-col items-center justify-center text-center opacity-50 cursor-not-allowed">
-                <span className="text-5xl mb-3">🎯</span>
-                <h3 className="font-semibold text-gray-900 mb-1">Challenges</h3>
-                <p className="text-2xl font-bold text-gray-600">{stats.challenges}</p>
-                <p className="text-xs text-gray-500 mt-1">0%</p>
-              </div>
-
-              <Link
-                to="/courses"
-                className="card p-6 hover:shadow-lg transition flex flex-col items-center justify-center text-center"
-              >
-                <span className="text-5xl mb-3">📖</span>
-                <h3 className="font-semibold text-gray-900 mb-1">Course</h3>
-                <p className="text-xs text-gray-500 mt-2">
-                  {enrollments.length > 0 ? `${enrollments.length} enrolled` : 'Explore courses'}
-                </p>
-              </Link>
-
-              <div className="card p-6 hover:shadow-lg transition flex flex-col items-center justify-center text-center opacity-50 cursor-not-allowed">
-                <span className="text-5xl mb-3">📝</span>
-                <h3 className="font-semibold text-gray-900 mb-1">Test & Exam</h3>
-                <p className="text-2xl font-bold text-gray-600">{stats.quizzes}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Certificates */}
-          {certificates.length > 0 && (
-            <div className="card p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">🏅 Your Certificates</h2>
-              <div className="space-y-3">
-                {certificates.map((cert) => (
-                  <div key={cert.id} className="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🎓</span>
-                      <div>
-                        <p className="font-medium text-gray-900">{cert.courseName}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(cert.issuedDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <button className="text-primary-600 hover:text-primary-700 font-medium text-sm">
-                      View
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Coding Workspace Section */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">💻 Coding Workspace</h2>
-            <p className="text-sm text-gray-500">Practice and write code in your personal workspace</p>
-          </div>
-          <Link
-            to="/editor"
-            className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition"
-          >
-            + New Workspace
-          </Link>
-        </div>
-      </div>
-    </div>
+    <DevHubDashboardContent
+      userName={learnerName}
+      subtitle={subtitle}
+      stats={stats}
+      activities={activities}
+      tracks={tracks}
+      actions={actions}
+      notificationCount={notificationCount}
+    />
   )
 }
 

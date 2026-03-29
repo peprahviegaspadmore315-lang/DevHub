@@ -7,6 +7,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -37,12 +38,30 @@ public class User {
     
     @Column(name = "last_name", length = 100)
     private String lastName;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
     
-    @Column(name = "avatar_url", length = 500)
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
     
     @Column(columnDefinition = "TEXT")
     private String bio;
+    
+    @Column(length = 20)
+    private String phone;
+    
+    @Column(length = 255)
+    private String location;
+    
+    @Column(length = 500)
+    private String website;
+    
+    @Column(length = 255)
+    private String profession;
+    
+    @Column(length = 255)
+    private String company;
     
     @Enumerated(EnumType.STRING)
     @Column(length = 20)

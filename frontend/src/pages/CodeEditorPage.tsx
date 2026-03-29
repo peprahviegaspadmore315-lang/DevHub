@@ -1,8 +1,34 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import Editor from '@monaco-editor/react'
 import { codeExecutionApi, exercisesApi } from '@/services/api'
+import ComponentFileViewer from '@/components/ui/file-viewer'
+import { buildIdeWorkspaceComponent } from '@/lib/ide-workspace'
+import { useToast } from '@/components/ui/toast-1'
+import {
+  loadSavedCodeSnippets,
+  saveSavedCodeSnippets,
+  type SavedCodeSnippet,
+} from '@/lib/learning-progress'
+import { useAuthStore } from '@/store'
 import type { Exercise, CodeExecutionResponse } from '@/types'
+import {
+  ArrowUpRight,
+  ChevronRight,
+  Clock3,
+  Copy,
+  ExternalLink,
+  FolderOpen,
+  LayoutPanelTop,
+  MoonStar,
+  PanelLeft,
+  Play,
+  RefreshCcw,
+  Save,
+  Sparkles,
+  SunMedium,
+  TerminalSquare,
+  Trash2,
+} from 'lucide-react'
 
 const LANGUAGES = [
   { id: 'html', name: 'HTML', extension: 'html' },
@@ -12,6 +38,8 @@ const LANGUAGES = [
   { id: 'java', name: 'Java', extension: 'java' },
   { id: 'sql', name: 'SQL', extension: 'sql' },
 ]
+
+const PREVIEW_LANGUAGES = new Set(['html', 'css', 'javascript'])
 
 type CommandMenuItemProps = {
   icon: string
@@ -81,6 +109,15 @@ print(doubled)`
 }`
     case 'sql':
       return `-- SQL Tutorial
+CREATE TABLE users (
+  id INT PRIMARY KEY,
+  name VARCHAR(50)
+);
+
+INSERT INTO users (id, name) VALUES
+  (1, 'Ada'),
+  (2, 'Grace');
+
 SELECT * FROM users;`
     default:
       return ''
@@ -90,6 +127,7 @@ SELECT * FROM users;`
 const CodeEditorPage = () => {
   const { exerciseId } = useParams()
   const [searchParams] = useSearchParams()
+  const { showToast } = useToast()
 
   const [language, setLanguage] = useState('html')
   const [code, setCode] = useState(getDefaultCode('html'))
@@ -99,7 +137,8 @@ const CodeEditorPage = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exercise, setExercise] = useState<Exercise | null>(null)
-  const [savedSnippets, setSavedSnippets] = useState<Array<{id:string;name:string;language:string;code:string;createdAt:number;}>>([])
+  const user = useAuthStore((state) => state.user)
+  const [savedSnippets, setSavedSnippets] = useState<SavedCodeSnippet[]>([])
   const [resultSize, setResultSize] = useState<{width:number;height:number}>({ width: 0, height: 0 })
   const [showResultSize, setShowResultSize] = useState(false)
   const [loadFileError, setLoadFileError] = useState<string | null>(null)
@@ -107,10 +146,26 @@ const CodeEditorPage = () => {
   const [commandMenuOpen, setCommandMenuOpen] = useState(false)
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal')
   const [editorTheme, setEditorTheme] = useState<'vs-dark' | 'light'>('vs-dark')
+  const [savedSnippetsOpen, setSavedSnippetsOpen] = useState(false)
+  const [copiedOutput, setCopiedOutput] = useState(false)
+  const [lastRunAt, setLastRunAt] = useState<number | null>(null)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const commandMenuRef = useRef<HTMLDivElement | null>(null)
   const navigate = useNavigate()
+  const activeLanguage = useMemo(
+    () => LANGUAGES.find((item) => item.id === language) ?? LANGUAGES[0],
+    [language]
+  )
+  const previewCapable = PREVIEW_LANGUAGES.has(language)
+  const outputModeLabel = previewCapable ? 'Live preview' : 'Execution console'
+  const workspaceStatus = error
+    ? 'Attention needed'
+    : loading
+    ? 'Running now'
+    : lastRunAt
+    ? 'Ready'
+    : 'Standing by'
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
@@ -128,14 +183,43 @@ const CodeEditorPage = () => {
   }, [commandMenuOpen])
 
   useEffect(() => {
-    const storedSnippets = window.localStorage.getItem('saved-code-snippets')
-    if (storedSnippets) {
-      try {
-        setSavedSnippets(JSON.parse(storedSnippets))
-      } catch {
-        setSavedSnippets([])
+    const handleKeyboardShortcuts = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || !event.altKey) {
+        return
+      }
+
+      const key = event.key.toLowerCase()
+
+      if (key === 'r') {
+        event.preventDefault()
+        void runCode()
+        return
+      }
+
+      if (key === 'a') {
+        event.preventDefault()
+        saveSnippet()
+        return
+      }
+
+      if (key === 'o') {
+        event.preventDefault()
+        setOrientation((previous) => (previous === 'horizontal' ? 'vertical' : 'horizontal'))
+        return
+      }
+
+      if (key === 'd') {
+        event.preventDefault()
+        setEditorTheme((previous) => (previous === 'vs-dark' ? 'light' : 'vs-dark'))
       }
     }
+
+    window.addEventListener('keydown', handleKeyboardShortcuts)
+    return () => window.removeEventListener('keydown', handleKeyboardShortcuts)
+  })
+
+  useEffect(() => {
+    setSavedSnippets(loadSavedCodeSnippets(user?.id))
 
     if (exerciseId) {
       const fetchExercise = async () => {
@@ -161,7 +245,7 @@ const CodeEditorPage = () => {
       }
       fetchExercise()
     }
-  }, [exerciseId])
+  }, [exerciseId, user?.id])
 
   useEffect(() => {
     if (initializedFromQuery) {
@@ -215,10 +299,13 @@ const CodeEditorPage = () => {
     setCode(defaultCode)
     setOutput('')
     setError(null)
+    setLoadFileError(null)
     if (newLanguage === 'html') {
       setPreviewHtml(defaultCode)
     } else if (newLanguage === 'css') {
       setPreviewHtml(buildCssPreview(defaultCode))
+    } else if (newLanguage === 'javascript') {
+      setPreviewHtml(buildJsPreview(defaultCode))
     } else {
       setPreviewHtml('')
     }
@@ -241,18 +328,6 @@ const CodeEditorPage = () => {
         return 'sql'
       default:
         return 'html'
-    }
-  }
-
-  const getEditorLanguage = (lang: string) => {
-    switch (lang) {
-      case 'html': return 'html'
-      case 'css': return 'css'
-      case 'javascript': return 'javascript'
-      case 'python': return 'python'
-      case 'java': return 'java'
-      case 'sql': return 'sql'
-      default: return 'plaintext'
     }
   }
 
@@ -304,6 +379,24 @@ const CodeEditorPage = () => {
 </html>`
   }
 
+  const updateSourceCode = (newValue: string) => {
+    setCode(newValue)
+
+    if (language === 'html') {
+      setPreviewHtml(newValue)
+      return
+    }
+
+    if (language === 'css') {
+      setPreviewHtml(buildCssPreview(newValue))
+      return
+    }
+
+    if (language === 'javascript') {
+      setPreviewHtml(buildJsPreview(newValue))
+    }
+  }
+
   const runCode = async () => {
     setRunPulse(true)
     setTimeout(() => setRunPulse(false), 700)
@@ -315,18 +408,21 @@ const CodeEditorPage = () => {
       if (language === 'html') {
         setPreviewHtml(code)
         setOutput('HTML preview rendered')
+        setLastRunAt(Date.now())
         return
       }
 
       if (language === 'css') {
         setPreviewHtml(buildCssPreview(code))
         setOutput('CSS preview rendered')
+        setLastRunAt(Date.now())
         return
       }
 
       if (language === 'javascript') {
         setPreviewHtml(buildJsPreview(code))
         setOutput('JavaScript preview rendered')
+        setLastRunAt(Date.now())
         return
       }
 
@@ -336,13 +432,18 @@ const CodeEditorPage = () => {
       })
 
       const result: CodeExecutionResponse = res.data
-      setOutput(result.output || 'No output')
+      setOutput(result.output || result.error || 'No output')
+      setLastRunAt(Date.now())
 
-      if (result.status === 'ERROR') {
-        setError(result.output)
+      if (result.success === false || result.status === 'ERROR') {
+        setError(result.error || result.output || 'Execution failed')
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to execute code')
+      const backendError =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.response?.data?.output
+      setError(backendError || 'Failed to execute code')
     } finally {
       setLoading(false)
     }
@@ -357,13 +458,26 @@ const CodeEditorPage = () => {
       setError(null)
       return
     }
+    if (language === 'css') {
+      setPreviewHtml(buildCssPreview(defaultCode))
+      setOutput('')
+      setError(null)
+      return
+    }
+    if (language === 'javascript') {
+      setPreviewHtml(buildJsPreview(defaultCode))
+      setOutput('')
+      setError(null)
+      return
+    }
+    setPreviewHtml('')
     setOutput('')
     setError(null)
   }
 
   const saveSnippet = () => {
     const snippetName = `${language.toUpperCase()} snippet ${new Date().toLocaleString()}`
-    const newSnippet = {
+    const newSnippet: SavedCodeSnippet = {
       id: `${Date.now()}`,
       name: snippetName,
       language,
@@ -371,18 +485,38 @@ const CodeEditorPage = () => {
       createdAt: Date.now(),
     }
     const next = [newSnippet, ...savedSnippets]
-    window.localStorage.setItem('saved-code-snippets', JSON.stringify(next))
+    saveSavedCodeSnippets(next, user?.id)
     setSavedSnippets(next)
-    alert(`Snippet saved as "${snippetName}"`)
+    showToast(`Saved "${snippetName}" to this device.`, 'success', 'top-right')
+    setSavedSnippetsOpen(true)
   }
 
-  const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(code)
-      alert('Code copied to clipboard')
-    } catch {
-      alert('Failed to copy code, please copy manually')
+  const loadSavedSnippet = (snippet: SavedCodeSnippet) => {
+    setLanguage(snippet.language)
+    setCode(snippet.code)
+    setOutput('')
+    setError(null)
+    setLoadFileError(null)
+
+    if (snippet.language === 'html') {
+      setPreviewHtml(snippet.code)
+    } else if (snippet.language === 'css') {
+      setPreviewHtml(buildCssPreview(snippet.code))
+    } else if (snippet.language === 'javascript') {
+      setPreviewHtml(buildJsPreview(snippet.code))
+    } else {
+      setPreviewHtml('')
     }
+
+    setSavedSnippetsOpen(false)
+    showToast(`Opened "${snippet.name}".`, 'info', 'top-right')
+  }
+
+  const deleteSavedSnippet = (snippetId: string) => {
+    const next = savedSnippets.filter((snippet) => snippet.id !== snippetId)
+    saveSavedCodeSnippets(next, user?.id)
+    setSavedSnippets(next)
+    showToast('Saved snippet removed.', 'success', 'top-right')
   }
 
   const loadFileStyle = (files: FileList | null) => {
@@ -411,8 +545,23 @@ const CodeEditorPage = () => {
         setCode(text)
         setPreviewHtml(buildJsPreview(text))
         setLoadFileError(null)
+      } else if (extension === 'py') {
+        setLanguage('python')
+        setCode(text)
+        setPreviewHtml('')
+        setLoadFileError(null)
+      } else if (extension === 'java') {
+        setLanguage('java')
+        setCode(text)
+        setPreviewHtml('')
+        setLoadFileError(null)
+      } else if (extension === 'sql') {
+        setLanguage('sql')
+        setCode(text)
+        setPreviewHtml('')
+        setLoadFileError(null)
       } else {
-        setLoadFileError('Unsupported file type. Use .css, .html, or .js')
+        setLoadFileError('Unsupported file type. Use .html, .css, .js, .py, .java, or .sql')
       }
     }
     reader.readAsText(file)
@@ -423,206 +572,447 @@ const CodeEditorPage = () => {
   }
 
   const openInNewTab = () => {
-    const payload = {
+    const params = new URLSearchParams({
       language,
       code,
-      source: 'open-in-new-tab',
-      timestamp: Date.now(),
-    }
-    window.sessionStorage.setItem('tryit-yourself', JSON.stringify(payload))
-    window.open('/editor?from=html-tutorial', '_blank')
+      from: 'editor-workspace',
+    })
+    window.open(`/editor?${params.toString()}`, '_blank', 'noopener,noreferrer')
   }
 
+  const openPreviewTab = () => {
+    if (!previewCapable) {
+      return
+    }
+
+    const previewWindow = window.open('', '_blank', 'noopener,noreferrer')
+    if (!previewWindow) {
+      showToast('The browser blocked the preview tab. Allow pop-ups and try again.', 'warning', 'top-right')
+      return
+    }
+
+    previewWindow.document.open()
+    previewWindow.document.write(previewHtml)
+    previewWindow.document.close()
+  }
+
+  const copyOutputContent = async () => {
+    const content = previewCapable ? previewHtml : error || output
+
+    if (!content) {
+      showToast('There is no output to copy yet.', 'warning', 'top-right')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedOutput(true)
+      showToast('Output copied.', 'success', 'top-right')
+      window.setTimeout(() => setCopiedOutput(false), 1800)
+    } catch {
+      showToast('Could not copy the output.', 'error', 'top-right')
+    }
+  }
+
+  const clearOutputPanel = () => {
+    setOutput('')
+    setError(null)
+    setPreviewHtml('')
+  }
+
+  const workspaceComponent = useMemo(
+    () =>
+      buildIdeWorkspaceComponent({
+        workspaceName: exercise ? exercise.title : 'DevHub IDE Workspace',
+        workspaceVersion: exercise ? 'exercise' : 'practice',
+        language,
+        code,
+        previewHtml,
+        output,
+        error,
+        exercise: exercise
+          ? {
+              title: exercise.title,
+              description: exercise.description,
+              instructions: exercise.instructions,
+              hints: exercise.hints,
+            }
+          : {
+              title: 'Live code session',
+              description: 'Use the DevHub editor to practice and test ideas.',
+              instructions:
+                'Write code in the main editor, run it, then inspect the generated files and output in the workspace viewer.',
+            },
+        savedSnippetCount: savedSnippets.length,
+      }),
+    [code, error, exercise, language, output, previewHtml, savedSnippets.length]
+  )
+
   return (
-    <div className="min-h-[calc(100vh-4rem)] h-[calc(100vh-4rem)] w-full flex flex-col pt-2 pb-2">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="relative flex items-center gap-2 p-1 bg-white border border-gray-200 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-700">
-            <button
-              onClick={() => navigate('/')}
-              className="h-9 w-9 rounded-md bg-white border border-gray-300 hover:bg-gray-100 dark:bg-slate-800 dark:border-slate-600 dark:hover:bg-slate-700 flex items-center justify-center"
-              title="Home"
-            >
-              <span role="img" aria-label="home">🏠</span>
-            </button>
-            <button
-              onClick={() => setCommandMenuOpen((prev) => !prev)}
-              aria-expanded={commandMenuOpen}
-              aria-label="Command Menu"
-              className="h-9 w-9 rounded-md bg-white border border-gray-300 hover:bg-gray-100 dark:bg-slate-800 dark:border-slate-600 dark:hover:bg-slate-700 flex items-center justify-center"
-              title="Command Menu"
-            >
-              <span aria-hidden="true">≡</span>
-            </button>
-            {commandMenuOpen && (
-              <div ref={commandMenuRef} className="absolute left-0 top-12 w-72 bg-white text-black rounded-xl shadow-2xl z-50 border border-gray-200 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700">
-                <CommandMenuItem icon="▶" label="Run Code" shortcut="Ctrl+Alt+R" onClick={() => { runCode(); setCommandMenuOpen(false) }} />
-                <CommandMenuItem icon="💾" label="Save Code" shortcut="Ctrl+Alt+A" onClick={() => { saveSnippet(); setCommandMenuOpen(false) }} />
-                <CommandMenuItem icon="↔" label="Change Orientation" shortcut="Ctrl+Alt+O" onClick={() => { setOrientation((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal')); setCommandMenuOpen(false) }} />
-                <CommandMenuItem icon="🌓" label="Change Theme" shortcut="Ctrl+Alt+D" onClick={() => { setEditorTheme((prev) => (prev === 'vs-dark' ? 'light' : 'vs-dark')); setCommandMenuOpen(false) }} />
-                <CommandMenuItem icon="🗂" label="Go to Spaces" shortcut="Ctrl+Alt+P" onClick={() => { navigate('/dashboard'); setCommandMenuOpen(false) }} />
+    <div className="min-h-[calc(100vh-4rem)] h-[calc(100vh-4rem)] w-full space-y-4 pt-2 pb-2">
+      <section className="overflow-hidden rounded-[2rem] border border-slate-200/80 bg-gradient-to-br from-slate-950 via-slate-900 to-sky-950 text-white shadow-[0_35px_90px_-55px_rgba(14,165,233,0.55)]">
+        <div className="border-b border-white/10 px-5 py-5">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="relative flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-1.5 shadow-lg shadow-sky-500/10">
+                <button
+                  onClick={() => navigate('/')}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white transition hover:bg-white/15"
+                  title="Back home"
+                >
+                  <ArrowUpRight className="h-4 w-4 rotate-180" />
+                </button>
+                <button
+                  onClick={() => setCommandMenuOpen((prev) => !prev)}
+                  aria-expanded={commandMenuOpen}
+                  aria-label="Command Menu"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white transition hover:bg-white/15"
+                  title="Workspace command menu"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </button>
+                {commandMenuOpen && (
+                  <div ref={commandMenuRef} className="absolute left-0 top-16 z-50 w-72 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl">
+                    <div className="border-b border-slate-100 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-600">Command palette</p>
+                      <p className="mt-1 text-sm text-slate-500">Run the workspace and switch layout quickly.</p>
+                    </div>
+                    <CommandMenuItem icon="▶" label="Run Code" shortcut="Ctrl+Alt+R" onClick={() => { runCode(); setCommandMenuOpen(false) }} />
+                    <CommandMenuItem icon="💾" label="Save Snippet" shortcut="Ctrl+Alt+A" onClick={() => { saveSnippet(); setCommandMenuOpen(false) }} />
+                    <CommandMenuItem icon="📂" label="Open Saved Snippets" shortcut="Open panel" onClick={() => { setSavedSnippetsOpen(true); setCommandMenuOpen(false) }} />
+                    <CommandMenuItem icon="↔" label="Toggle Layout" shortcut="Ctrl+Alt+O" onClick={() => { setOrientation((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal')); setCommandMenuOpen(false) }} />
+                    <CommandMenuItem icon="🌓" label="Toggle Theme" shortcut="Ctrl+Alt+D" onClick={() => { setEditorTheme((prev) => (prev === 'vs-dark' ? 'light' : 'vs-dark')); setCommandMenuOpen(false) }} />
+                    <CommandMenuItem icon="🗂" label="Open Dashboard" shortcut="Ctrl+Alt+P" onClick={() => { navigate('/dashboard'); setCommandMenuOpen(false) }} />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              {exercise ? exercise.title : 'Code Editor'}
-            </h1>
-            {exercise && (
-              <p className="text-sm text-gray-500 dark:text-slate-400">{exercise.description}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={language}
-            onChange={(e) => handleLanguageChange(e.target.value)}
-            className="input w-40"
-          >
-            {LANGUAGES.map((lang) => (
-              <option key={lang.id} value={lang.id}>
-                {lang.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
 
+              <div className="max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-200/80">DevHub workspace</p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+                  {exercise ? exercise.title : 'Code Editor'}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                  {exercise?.description || 'Write, run, save, and revisit your DevHub practice code from one professional workspace.'}
+                </p>
+              </div>
+            </div>
 
-      {/* Editor, Output, and Side Panel */}
-      <div
-        className={`flex-1 gap-4 min-h-[calc(100vh-8rem)] h-[calc(100vh-8rem)] w-full ${
-          orientation === 'horizontal'
-            ? 'grid grid-cols-[3.5fr_3.5fr_1fr]'
-            : 'grid grid-rows-[3.5fr_3.5fr_1fr]'
-        }`}
-      >
-        {/* Code Editor */}
-        <div className="card overflow-hidden flex flex-col h-full min-h-0 max-h-[calc(100vh-10rem)]">
-          <div className="bg-gray-800 px-4 py-2 flex items-center justify-between">
-            <span className="text-gray-300 text-sm font-medium">
-              {LANGUAGES.find((l) => l.id === language)?.name}
-            </span>
-            <div className="flex gap-2 items-center">
-              <button
-                onClick={saveSnippet}
-                className="text-green-300 hover:text-white text-sm"
-                title="Save snippet"
-              >
-                💾 Save
-              </button>
-              <button
-                onClick={copyCode}
-                className="text-blue-300 hover:text-white text-sm"
-                title="Copy code"
-              >
-                📋 Copy
-              </button>
-              <button
-                onClick={openInNewTab}
-                className="text-indigo-300 hover:text-white text-sm"
-                title="Open in new tab"
-              >
-                ↗ Open
-              </button>
-              <button
-                onClick={triggerFileLoad}
-                className="text-yellow-300 hover:text-white text-sm"
-                title="Load file style"
-              >
-                📁 Load file style
-              </button>
-              <button
-                onClick={resetCode}
-                className="text-gray-400 hover:text-white text-sm"
-                title="Reset code"
-              >
-                Reset
-              </button>
-              <input
-                type="file"
-                className="hidden"
-                accept=".css,.html,.js"
-                ref={fileInputRef}
-                onChange={(e) => loadFileStyle(e.target.files)}
-              />
+            <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[26rem]">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Current mode</p>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-semibold">{activeLanguage.name}</p>
+                    <p className="text-sm text-slate-300">{outputModeLabel}</p>
+                  </div>
+                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${error ? 'border-rose-400/20 bg-rose-500/15 text-rose-100' : 'border-emerald-400/20 bg-emerald-500/15 text-emerald-100'}`}>
+                    {workspaceStatus}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Workspace details</p>
+                <div className="mt-3 space-y-2 text-sm text-slate-200">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Saved snippets</span>
+                    <span className="font-semibold">{savedSnippets.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Layout</span>
+                    <span className="font-semibold">{orientation === 'horizontal' ? 'Side by side' : 'Stacked'}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Theme</span>
+                    <span className="font-semibold">{editorTheme === 'vs-dark' ? 'Dark editor' : 'Light editor'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          {loadFileError && (
-            <div className="bg-red-100 text-red-700 px-3 py-2 text-sm border border-red-300">
-              {loadFileError}
-            </div>
-          )}
-          <div className="flex-1">
-            <Editor
-              height="100%"
-              language={getEditorLanguage(language)}
-              theme={editorTheme}
-              value={code}
-              onChange={(value) => {
-                const newValue = value || ''
-                setCode(newValue)
-                if (language === 'html') {
-                  setPreviewHtml(newValue)
-                }
-                if (language === 'css') {
-                  setPreviewHtml(buildCssPreview(newValue))
-                }
-                if (language === 'javascript') {
-                  setPreviewHtml(buildJsPreview(newValue))
-                }
-              }}
-              options={{
-                fontSize: 14,
-                fontFamily: "'Fira Code', monospace",
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                tabSize: 2,
-              }}
-            />
-          </div>
-          <div className="border-t border-gray-200 p-3 bg-gray-50 flex items-center justify-end gap-2 sticky bottom-0 z-20">
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100">
+              <span className="font-medium text-slate-200">Language</span>
+              <select
+                value={language}
+                onChange={(e) => handleLanguageChange(e.target.value)}
+                className="min-w-[9rem] bg-transparent text-sm text-white outline-none"
+              >
+                {LANGUAGES.map((lang) => (
+                  <option key={lang.id} value={lang.id} className="text-slate-950">
+                    {lang.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              onClick={() => setSavedSnippetsOpen((prev) => !prev)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              <FolderOpen className="h-4 w-4 text-sky-300" />
+              Saved snippets
+            </button>
+
+            <button
+              onClick={() => setOrientation((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal'))}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              {orientation === 'horizontal' ? <PanelLeft className="h-4 w-4 text-sky-300" /> : <LayoutPanelTop className="h-4 w-4 text-sky-300" />}
+              {orientation === 'horizontal' ? 'Stack panels' : 'Side by side'}
+            </button>
+
+            <button
+              onClick={() => setEditorTheme((prev) => (prev === 'vs-dark' ? 'light' : 'vs-dark'))}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              {editorTheme === 'vs-dark' ? <SunMedium className="h-4 w-4 text-amber-300" /> : <MoonStar className="h-4 w-4 text-sky-300" />}
+              {editorTheme === 'vs-dark' ? 'Light editor' : 'Dark editor'}
+            </button>
+
             <button
               onClick={runCode}
               disabled={loading}
-              className={`px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded transition-colors disabled:opacity-50 ${runPulse ? 'ring-2 ring-green-400 ring-opacity-75 animate-pulse' : ''}`}
-              title="Run code from the code editor panel"
+              className={`inline-flex items-center gap-2 rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_-22px_rgba(14,165,233,0.65)] transition hover:bg-sky-400 disabled:opacity-60 ${runPulse ? 'ring-2 ring-sky-200/70 ring-offset-2 ring-offset-slate-950' : ''}`}
             >
-              {loading ? 'Running...' : 'Run Code ▶'}
+              <Play className="h-4 w-4" />
+              {loading ? 'Running workspace...' : 'Run workspace'}
             </button>
           </div>
         </div>
+      </section>
 
-        {/* Output Panel */}
-        <div className="card overflow-hidden flex flex-col h-full min-h-0 max-h-[calc(100vh-10rem)]">
-          <div className="bg-blue-600 px-4 py-2 flex items-center justify-between">
-            <span className="text-white text-sm font-medium">Output</span>
-            <div className="text-xs text-blue-100 flex items-center gap-3">
-              <span className="text-blue-100" title="Use the Run button in the left code panel to update this output">
-                Execute in code panel ⌨️
+      {savedSnippetsOpen && (
+        <section className="rounded-[1.75rem] border border-slate-200/80 bg-white/95 p-4 shadow-[0_22px_60px_-40px_rgba(15,23,42,0.45)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-600">Saved work</p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-950">Open a previous DevHub snippet</h2>
+              <p className="mt-1 text-sm text-slate-500">Load saved practice code back into the editor, or remove older drafts you no longer need.</p>
+            </div>
+            <button
+              onClick={() => setSavedSnippetsOpen(false)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-sky-200 hover:text-sky-700"
+            >
+              Close panel
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {savedSnippets.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+              No saved snippets yet. Save your current work and it will appear here.
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {savedSnippets.slice(0, 8).map((snippet) => (
+                <div key={snippet.id} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-slate-900">{snippet.name}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                        <span className="rounded-full bg-slate-900 px-2.5 py-1 font-semibold uppercase tracking-[0.2em] text-slate-100">
+                          {snippet.language}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Clock3 className="h-3.5 w-3.5" />
+                          {new Date(snippet.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteSavedSnippet(snippet.id)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-500 transition hover:bg-rose-50"
+                      title="Delete snippet"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      onClick={() => loadSavedSnippet(snippet)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-500"
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      Open snippet
+                    </button>
+                    <span className="text-xs text-slate-500">Loads directly into the active workspace.</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      <div
+        className={`flex-1 gap-4 min-h-[calc(100vh-8rem)] h-[calc(100vh-8rem)] w-full ${
+          orientation === 'horizontal'
+            ? 'grid grid-cols-[1.7fr_1fr]'
+            : 'grid grid-rows-[1.55fr_1fr]'
+        }`}
+      >
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/95 p-3 shadow-[0_22px_60px_-40px_rgba(15,23,42,0.42)]">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-600">Source workspace</p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-950">Write and refine your code</h2>
+            </div>
+            <p className="text-sm text-slate-500">
+              Save drafts, import files, or run the current workspace when you're ready.
+            </p>
+          </div>
+
+          {loadFileError && (
+            <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {loadFileError}
+            </div>
+          )}
+
+          <ComponentFileViewer
+            component={workspaceComponent}
+            onFileChange={(_, nextValue) => updateSourceCode(nextValue)}
+            editorTheme={editorTheme}
+            editorOptions={{
+              fontSize: 14,
+              fontFamily: "'Fira Code', monospace",
+              minimap: { enabled: false },
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              tabSize: 2,
+            }}
+            headerActions={
+              <>
+                <button
+                  onClick={saveSnippet}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-100 transition-colors hover:bg-emerald-400/20"
+                  title="Save snippet"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  Save
+                </button>
+                <button
+                  onClick={() => setSavedSnippetsOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/20 bg-sky-400/10 px-3 py-1.5 text-xs font-medium text-sky-100 transition-colors hover:bg-sky-400/20"
+                  title="Open a saved snippet"
+                >
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  Open
+                </button>
+                <button
+                  onClick={triggerFileLoad}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-100 transition-colors hover:bg-amber-400/20"
+                  title="Load file from device"
+                >
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  Load file
+                </button>
+                <button
+                  onClick={resetCode}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 transition-colors hover:bg-white/10"
+                  title="Reset code"
+                >
+                  <RefreshCcw className="h-3.5 w-3.5" />
+                  Reset
+                </button>
+                <button
+                  onClick={runCode}
+                  disabled={loading}
+                  className={`inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/20 bg-emerald-500/90 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-400 disabled:opacity-50 ${runPulse ? 'ring-2 ring-emerald-300/70' : ''}`}
+                  title="Run code"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  {loading ? 'Running...' : 'Run'}
+                </button>
+              </>
+            }
+            className="h-full min-h-0 rounded-[1.5rem] border border-slate-200/30 shadow-none"
+          />
+
+          <input
+            type="file"
+            className="hidden"
+            accept=".css,.html,.js,.py,.java,.sql"
+            ref={fileInputRef}
+            onChange={(e) => loadFileStyle(e.target.files)}
+          />
+        </div>
+
+        <div className="flex min-h-0 max-h-[calc(100vh-10rem)] flex-col overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/95 shadow-[0_22px_60px_-40px_rgba(15,23,42,0.42)]">
+          <div className="border-b border-slate-200/80 bg-gradient-to-r from-slate-950 via-slate-900 to-sky-950 px-4 py-4 text-white">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <TerminalSquare className="h-4 w-4 text-sky-300" />
+                  <span className="text-sm font-semibold">{outputModeLabel}</span>
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] ${error ? 'bg-rose-500/15 text-rose-100' : 'bg-emerald-500/15 text-emerald-100'}`}>
+                    {workspaceStatus}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-300">
+                  {previewCapable
+                    ? 'Preview updates when you run the workspace. Pop it out or copy the rendered source when you need more room.'
+                    : 'Run your code to inspect console output, runtime errors, and backend execution results.'}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setShowResultSize((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-medium text-slate-100 transition hover:bg-white/15"
+                >
+                  {showResultSize ? 'Hide size' : 'Show size'}
+                </button>
+                {previewCapable && (
+                  <button
+                    onClick={openPreviewTab}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-medium text-slate-100 transition hover:bg-white/15"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Preview tab
+                  </button>
+                )}
+                <button
+                  onClick={copyOutputContent}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-medium text-slate-100 transition hover:bg-white/15"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  {copiedOutput ? 'Copied' : 'Copy'}
+                </button>
+                <button
+                  onClick={clearOutputPanel}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-medium text-slate-100 transition hover:bg-white/15"
+                >
+                  <RefreshCcw className="h-3.5 w-3.5" />
+                  Clear
+                </button>
+                <button
+                  onClick={openInNewTab}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-400"
+                >
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  New editor tab
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-300">
+              <span>
+                Run from the source panel or with <span className="font-semibold text-white">Ctrl+Alt+R</span>
               </span>
-              <button
-                onClick={() => setShowResultSize((prev) => !prev)}
-                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-200"
-              >
-                {showResultSize ? 'Hide result size' : 'Show result size'}
-              </button>
-              {showResultSize && (
-                <span>
-                  {resultSize.width} x {resultSize.height}
-                </span>
-              )}
+              {showResultSize && <span>Viewport: {resultSize.width} x {resultSize.height}</span>}
+              {lastRunAt && <span>Last run: {new Date(lastRunAt).toLocaleTimeString()}</span>}
             </div>
           </div>
-          <div className="flex-1 bg-white p-4 overflow-auto font-mono text-sm text-black">
-            {(language === 'html' || language === 'javascript') ? (
+          <div className="flex-1 overflow-auto bg-white p-4 font-mono text-sm text-black">
+            {previewCapable ? (
               <iframe
                 title="Preview"
                 srcDoc={previewHtml}
                 sandbox="allow-scripts allow-same-origin"
-                className="w-full h-full border-none"
+                className="h-full w-full rounded-2xl border border-slate-200/80 bg-white"
                 ref={iframeRef}
                 onLoad={() => {
                   if (iframeRef.current) {
@@ -638,57 +1028,54 @@ const CodeEditorPage = () => {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
             ) : error ? (
-              <pre className="text-red-700 bg-red-50 p-2 rounded whitespace-pre-wrap">{error}</pre>
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-red-500">Execution error</p>
+                <pre className="whitespace-pre-wrap text-sm text-red-700">{error}</pre>
+              </div>
             ) : output ? (
-              <pre className="text-slate-900 bg-slate-100 p-2 rounded whitespace-pre-wrap">{output}</pre>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Runtime output</p>
+                <pre className="whitespace-pre-wrap text-sm text-slate-900">{output}</pre>
+              </div>
             ) : (
-              <div className="text-gray-500 flex items-center justify-center h-full">
-                Click "Run Code" to see output
+              <div className="flex h-full items-center justify-center">
+                <div className="max-w-sm text-center">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
+                    <TerminalSquare className="h-6 w-6" />
+                  </div>
+                  <p className="text-base font-semibold text-slate-900">Your output will appear here</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Run the current workspace to preview front-end code or inspect runtime output for Python, Java, and SQL.
+                  </p>
+                </div>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Right panel: Ads / instructions / tips */}
-        <div className="card overflow-hidden flex flex-col h-full min-h-0">
-          <div className="bg-gray-800 px-4 py-2">
-            <span className="text-gray-300 text-sm font-medium">Tutorial Tips</span>
-          </div>
-          <div className="flex-1 p-4 overflow-auto space-y-3 text-sm text-gray-700">
-            <div className="rounded border border-dashed border-gray-300 p-3 bg-white/5">
-              <p className="font-semibold">Need help?</p>
-              <p>Use the left editor for code. Click run to refresh output.</p>
-            </div>
-            <div className="rounded border border-dashed border-gray-300 p-3 bg-white/5">
-              <p className="font-semibold">Shortcut</p>
-              <p>Save code: clicking 💾 Save stores snippet in local storage.</p>
-            </div>
-            <div className="rounded border border-dashed border-gray-300 p-3 bg-white/5">
-              <p className="font-semibold">Pro tip</p>
-              <p>Use Load file style to import .css/.html/.js directly to editor.</p>
-            </div>
-            <div className="rounded border border-dashed border-gray-300 p-3 bg-white/5">
-              <p className="font-semibold">Sponsored</p>
-              <p className="text-xs text-gray-500">Upgrade to premium course for advanced exercises.</p>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Exercise Instructions */}
       {exercise && (
-        <div className="mt-4 card p-4">
-          <h3 className="font-semibold text-gray-900 mb-2">Instructions</h3>
-          <p className="text-gray-600">{exercise.instructions}</p>
+        <div className="rounded-[1.75rem] border border-slate-200/80 bg-white/95 p-5 shadow-[0_22px_60px_-40px_rgba(15,23,42,0.42)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-600">Exercise brief</p>
+              <h3 className="mt-1 text-xl font-semibold text-slate-950">Instructions</h3>
+            </div>
+            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+              Practice mode
+            </span>
+          </div>
+          <p className="mt-4 text-sm leading-7 text-slate-600">{exercise.instructions}</p>
           {exercise.hints && exercise.hints.length > 0 && (
-            <div className="mt-3">
+            <div className="mt-4">
               <details>
-                <summary className="cursor-pointer text-primary-600 hover:text-primary-700">
+                <summary className="cursor-pointer text-sm font-semibold text-sky-600 hover:text-sky-700">
                   Show Hints
                 </summary>
-                <ul className="mt-2 space-y-1 text-sm text-gray-600">
+                <ul className="mt-3 space-y-2 text-sm text-slate-600">
                   {exercise.hints.map((hint, i) => (
-                    <li key={i}>💡 {hint}</li>
+                    <li key={i} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">💡 {hint}</li>
                   ))}
                 </ul>
               </details>

@@ -7,6 +7,8 @@ interface User {
   username: string
   firstName?: string
   lastName?: string
+  dateOfBirth?: string
+  location?: string
   avatarUrl?: string
   role: string
 }

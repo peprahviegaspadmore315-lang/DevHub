@@ -1,11 +1,14 @@
 package com.learningplatform.controller;
 
 import com.learningplatform.model.dto.CourseDTO;
+import com.learningplatform.model.dto.PlatformSummaryDTO;
 import com.learningplatform.model.entity.Course;
 import com.learningplatform.model.entity.User;
 import com.learningplatform.repository.CourseRepository;
 import com.learningplatform.repository.EnrollmentRepository;
+import com.learningplatform.repository.ExerciseRepository;
 import com.learningplatform.repository.LessonRepository;
+import com.learningplatform.repository.UserRepository;
 import com.learningplatform.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,7 +30,9 @@ public class CourseController {
     
     private final CourseRepository courseRepository;
     private final LessonRepository lessonRepository;
+    private final ExerciseRepository exerciseRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final UserRepository userRepository;
     private final AuthService authService;
     
     @GetMapping
@@ -47,6 +52,18 @@ public class CourseController {
                 .toList();
         
         return ResponseEntity.ok(courseDTOs);
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<PlatformSummaryDTO> getPlatformSummary() {
+        PlatformSummaryDTO summary = PlatformSummaryDTO.builder()
+                .courses(courseRepository.countByIsPublishedTrue())
+                .tutorials(lessonRepository.countByIsPublishedTrue())
+                .exercises(exerciseRepository.countByIsPublishedTrue())
+                .users(userRepository.countByIsActiveTrue())
+                .build();
+
+        return ResponseEntity.ok(summary);
     }
     
     @GetMapping("/{id}")
@@ -140,7 +157,8 @@ public class CourseController {
     }
     
     private CourseDTO mapToDTO(Course course) {
-        Long lessonsCount = lessonRepository.countByCourseId(course.getId());
+        Long lessonsCount = lessonRepository.countByCourseIdAndIsPublishedTrue(course.getId());
+        Long exercisesCount = exerciseRepository.countByCourseIdAndIsPublishedTrue(course.getId());
         
         return CourseDTO.builder()
                 .id(course.getId())
@@ -161,6 +179,7 @@ public class CourseController {
                 .createdBy(course.getCreatedBy() != null ? course.getCreatedBy().getId() : null)
                 .createdByName(course.getCreatedBy() != null ? course.getCreatedBy().getUsername() : null)
                 .lessonsCount(lessonsCount.intValue())
+                .exercisesCount(exercisesCount.intValue())
                 .createdAt(course.getCreatedAt())
                 .updatedAt(course.getUpdatedAt())
                 .build();

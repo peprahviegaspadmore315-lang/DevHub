@@ -14,6 +14,8 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
     List<Lesson> findByCourseIdOrderByOrderIndexAsc(Long courseId);
     
     List<Lesson> findByCourseIdAndIsPublishedTrueOrderByOrderIndexAsc(Long courseId);
+
+    long countByIsPublishedTrue();
     
     Optional<Lesson> findByCourseIdAndSlug(Long courseId, String slug);
     
@@ -24,4 +26,6 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
     Optional<Lesson> findPreviousLesson(Long courseId, Integer currentOrderIndex);
     
     Long countByCourseId(Long courseId);
+
+    Long countByCourseIdAndIsPublishedTrue(Long courseId);
 }

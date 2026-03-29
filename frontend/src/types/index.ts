@@ -4,6 +4,8 @@ export interface User {
   username: string
   firstName?: string
   lastName?: string
+  dateOfBirth?: string
+  location?: string
   avatarUrl?: string
   bio?: string
   role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN'
@@ -35,6 +37,13 @@ export interface Course {
   quizzesCount?: number
   createdAt: string
   updatedAt?: string
+}
+
+export interface PlatformSummary {
+  courses: number
+  tutorials: number
+  exercises: number
+  users: number
 }
 
 export interface Lesson {
@@ -172,6 +181,8 @@ export interface RegisterRequest {
   username: string
   firstName?: string
   lastName?: string
+  dateOfBirth?: string
+  location?: string
 }
 
 export interface AuthResponse {
@@ -179,6 +190,66 @@ export interface AuthResponse {
   refreshToken: string
   user: User
   expiresIn: number
+}
+
+export interface PasswordResetInitiateResponse {
+  message: string
+  success: boolean
+  codeSent?: boolean
+  preview?: boolean
+  previewCode?: string
+  expiresAt?: string
+}
+
+export interface PasswordResetVerifyResponse {
+  message: string
+  success: boolean
+  expiresAt?: string
+}
+
+export interface FeedbackRequest {
+  category: string
+  summary: string
+  blockers?: string
+  improvements?: string
+  pageUrl?: string
+  browserInfo?: string
+}
+
+export interface FeedbackResponse {
+  message: string
+  success: boolean
+}
+
+export interface ProgrammingNewsArticle {
+  id: string
+  title: string
+  category: string
+  subcategory: string
+  mediaType?: 'article' | 'video'
+  actionLabel?: string
+  timeAgo: string
+  location: string
+  image: string
+  gradientColors?: string[]
+  content?: string[]
+  articleUrl: string
+  sourceName: string
+  publishedAt?: string
+}
+
+export interface ProgrammingNewsResponse {
+  title: string
+  subtitle: string
+  fetchedAt: string
+  sources: {
+    id: string
+    category: string
+    subcategory: string
+    length: number
+    opacity: number
+  }[]
+  articles: ProgrammingNewsArticle[]
 }
 
 export interface CodeExecutionRequest {
@@ -191,9 +262,14 @@ export interface CodeExecutionRequest {
 
 export interface CodeExecutionResponse {
   output: string
-  executionTime: number
-  memory: number
-  status: 'SUCCESS' | 'ERROR' | 'TIMEOUT' | 'MEMORY_LIMIT_EXCEEDED' | 'RUNTIME_ERROR'
+  success?: boolean
+  executionTime?: number
+  executionTimeMs?: number
+  memory?: number
+  exitCode?: number
+  language?: string
+  timestamp?: string
+  status?: 'SUCCESS' | 'ERROR' | 'TIMEOUT' | 'MEMORY_LIMIT_EXCEEDED' | 'RUNTIME_ERROR'
   error?: string
 }
 

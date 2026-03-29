@@ -23,8 +23,14 @@ CREATE TABLE users (
     username VARCHAR(100) UNIQUE NOT NULL,
     first_name VARCHAR(100),
     last_name VARCHAR(100),
-    avatar_url VARCHAR(500),
+    date_of_birth DATE,
+    avatar_url TEXT,
     bio TEXT,
+    phone VARCHAR(20),
+    location VARCHAR(255),
+    website VARCHAR(500),
+    profession VARCHAR(255),
+    company VARCHAR(255),
     role user_role DEFAULT 'STUDENT',
     is_active BOOLEAN DEFAULT TRUE,
     email_verified BOOLEAN DEFAULT FALSE,
@@ -286,6 +292,7 @@ CREATE TABLE certificates (
     expiry_date TIMESTAMP,
     status certificate_status DEFAULT 'ACTIVE',
     metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, course_id)
 );
 

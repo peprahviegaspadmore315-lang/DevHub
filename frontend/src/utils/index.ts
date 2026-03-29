@@ -1,4 +1,18 @@
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+const normalizeApiBaseUrl = (rawBaseUrl?: string) => {
+  const baseUrl = (rawBaseUrl || '/api').trim().replace(/\/+$/, '')
+
+  if (baseUrl === '' || baseUrl === '/api') {
+    return '/api'
+  }
+
+  if (baseUrl.endsWith('/api')) {
+    return baseUrl
+  }
+
+  return `${baseUrl}/api`
+}
+
+export const API_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
 
 export const getAccessToken = () => {
   const auth = JSON.parse(localStorage.getItem('auth-storage') || '{}')
