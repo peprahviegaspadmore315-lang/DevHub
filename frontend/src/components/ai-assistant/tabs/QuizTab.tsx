@@ -15,6 +15,7 @@ import {
 
 import { useToast } from '@/components/ui/toast-1'
 import { useAIAssistant } from '@/contexts/AIAssistantContext'
+import { getApiUrl } from '@/services/api-client'
 
 import '../AIAssistant.css'
 
@@ -594,7 +595,7 @@ const QuizTab: React.FC = () => {
     resetQuizState()
 
     try {
-      const response = await fetch('/api/ai/generate-quiz', {
+      const response = await fetch(getApiUrl('/api/ai/generate-quiz'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

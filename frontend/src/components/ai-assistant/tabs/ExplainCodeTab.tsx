@@ -22,6 +22,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 import { useAIAssistant, type AIAssistantLearningContext } from '@/contexts/AIAssistantContext'
+import { getApiUrl } from '@/services/api-client'
 
 import '../AIAssistant.css'
 
@@ -403,7 +404,7 @@ const ExplainCodeTab = () => {
     try {
       let nextExplanation = ''
 
-      const response = await fetch('/api/ai/explain-code', {
+      const response = await fetch(getApiUrl('/api/ai/explain-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -421,7 +422,7 @@ const ExplainCodeTab = () => {
       if (!nextExplanation) {
         console.warn('Dedicated explain-code endpoint unavailable, falling back to AI chat.')
 
-        const fallbackResponse = await fetch('/api/ai/chat', {
+        const fallbackResponse = await fetch(getApiUrl('/api/ai/chat'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -25,6 +25,7 @@ import {
   useAIAssistant,
   type AIAssistantLearningContext,
 } from '@/contexts/AIAssistantContext'
+import { getApiUrl } from '@/services/api-client'
 import { useAuthStore } from '@/store'
 
 import '../AIAssistant.css'
@@ -597,7 +598,7 @@ const ChatTab: React.FC = () => {
 
   const loadStatus = useCallback(async () => {
     try {
-      const response = await fetch('/api/ai/status')
+      const response = await fetch(getApiUrl('/api/ai/status'))
 
       if (!response.ok) {
         throw new Error(`AI status request failed with status ${response.status}`)
@@ -807,7 +808,7 @@ const ChatTab: React.FC = () => {
       setIsVoiceTranscribing(true)
 
       try {
-        const response = await fetch('/api/ai/transcribe', {
+        const response = await fetch(getApiUrl('/api/ai/transcribe'), {
           method: 'POST',
           body: formData,
         })
@@ -1318,7 +1319,7 @@ const ChatTab: React.FC = () => {
 
     try {
       const sendChatRequest = async (payloadMessage: string, visionRetry = false) =>
-        fetch('/api/ai/chat', {
+        fetch(getApiUrl('/api/ai/chat'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

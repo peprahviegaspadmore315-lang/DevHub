@@ -25,8 +25,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Configuration
 @EnableWebSecurity
@@ -90,10 +91,20 @@ public class SecurityConfig {
     }
 
     private List<String> parseAllowedOrigins() {
-        return Arrays.stream(allowedOrigins.split(","))
+        Set<String> origins = new LinkedHashSet<>();
+
+        Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
-                .collect(Collectors.toList());
+                .forEach(origins::add);
+
+        origins.add("https://*.vercel.app");
+        origins.add("http://localhost:5173");
+        origins.add("http://localhost:5174");
+        origins.add("http://127.0.0.1:5173");
+        origins.add("http://127.0.0.1:5174");
+
+        return List.copyOf(origins);
     }
     
     @Bean
