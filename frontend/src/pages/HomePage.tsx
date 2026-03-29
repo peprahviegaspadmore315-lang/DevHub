@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Award, BarChart3, BookOpen, Code2, Layers3, Sparkles, Target, Users } from 'lucide-react'
 import DevHubWordmark from '@/components/ui/devhub-wordmark'
 import HeroSection from '@/components/ui/hero-section-9'
+import { buildFallbackCourses, buildFallbackPlatformSummary } from '@/lib/course-catalog-fallback'
 import { coursesApi } from '@/services/api'
 import type { Course, PlatformSummary } from '@/types'
 
@@ -13,21 +14,25 @@ const HomePage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      const fallbackCourses = buildFallbackCourses()
+      const fallbackSummary = buildFallbackPlatformSummary()
       const [coursesRes, summaryRes] = await Promise.allSettled([
         coursesApi.getAll(),
         coursesApi.getSummary(),
       ])
 
       if (coursesRes.status === 'fulfilled') {
-        setAllCourses(coursesRes.value.data)
+        setAllCourses(coursesRes.value.data.length > 0 ? coursesRes.value.data : fallbackCourses)
       } else {
         console.error('Failed to fetch courses:', coursesRes.reason)
+        setAllCourses(fallbackCourses)
       }
 
       if (summaryRes.status === 'fulfilled') {
         setPlatformSummary(summaryRes.value.data)
       } else {
         console.error('Failed to fetch platform summary:', summaryRes.reason)
+        setPlatformSummary(fallbackSummary)
       }
     }
     fetchData()

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { OrbitalLoader } from '@/components/ui/orbital-loader'
 import { useAIAssistant } from '@/contexts/AIAssistantContext'
 import { coursesApi } from '@/services/api'
+import { findLocalCourseData, inferCourseLanguage } from '@/lib/course-catalog-fallback'
 import { topicApi, Topic } from '@/services/topicService'
 import { courseData, type CourseData } from '@/data/courseData'
 import { createCourseTopicSlugMap } from '@/lib/course-topic-slugs'
@@ -122,12 +123,13 @@ const mapLessonsToTopics = (courseIdNumber: number, topicLanguage: string): Topi
   } as Topic))
 }
 
-const buildLocalCoursePayload = (localCourse: CourseData) => {
+const buildLocalCoursePayload = (localCourse: CourseData, courseIdOverride?: number) => {
   const lessonSlugs = createCourseTopicSlugMap(localCourse.lessons)
+  const effectiveCourseId = courseIdOverride ?? localCourse.id
 
   return {
     course: {
-      id: localCourse.id,
+      id: effectiveCourseId,
       title: localCourse.title,
       description: localCourse.description,
       category: localCourse.category,
@@ -153,7 +155,7 @@ const buildLocalCoursePayload = (localCourse: CourseData) => {
       content: lesson.content,
       summary: lesson.summary,
       estimatedMinutes: 10,
-      courseId: localCourse.id,
+      courseId: effectiveCourseId,
       courseTitle: localCourse.title,
       slug: lessonSlugs[lesson.id],
       orderIndex: lesson.id,
@@ -180,7 +182,8 @@ const CourseDetailPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (!courseId) return
-      const localCourse = courseData.find((c) => c.id === parseInt(courseId, 10))
+      const parsedCourseId = parseInt(courseId, 10)
+      const localCourse = findLocalCourseData({ id: parsedCourseId })
       if (localCourse) {
         const localPayload = buildLocalCoursePayload(localCourse)
         setCourse(localPayload.course)
@@ -191,11 +194,28 @@ const CourseDetailPage = () => {
 
       try {
         const [courseRes, lessonsRes] = await Promise.all([
-          coursesApi.getById(parseInt(courseId)),
-          coursesApi.getLessons(parseInt(courseId)),
+          coursesApi.getById(parsedCourseId),
+          coursesApi.getLessons(parsedCourseId),
         ])
-        setCourse(courseRes.data)
-        setLessons(lessonsRes.data)
+
+        const matchedLocalCourse = findLocalCourseData({
+          id: parsedCourseId,
+          slug: courseRes.data.slug,
+          title: courseRes.data.title,
+        })
+
+        if (matchedLocalCourse) {
+          const localPayload = buildLocalCoursePayload(matchedLocalCourse, courseRes.data.id)
+          setCourse({
+            ...courseRes.data,
+            ...localPayload.course,
+            id: courseRes.data.id,
+          })
+          setLessons(localPayload.lessons)
+        } else {
+          setCourse(courseRes.data)
+          setLessons(lessonsRes.data)
+        }
       } catch (error) {
         console.warn('Failed to fetch course from API, using fallback:', error)
       } finally {
@@ -223,19 +243,21 @@ const CourseDetailPage = () => {
   const [draftTopicNote, setDraftTopicNote] = useState('')
   const topicRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
-  const courseLanguageMap: Record<number, string> = {
-    1: 'html',
-    2: 'css',
-    3: 'java',
-    4: 'python',
-  }
-
   const courseIdNumber = courseId ? parseInt(courseId, 10) : 0
-  const topicLanguage = courseLanguageMap[courseIdNumber] || 'html'
+  const matchedLocalCourse = findLocalCourseData({
+    id: courseIdNumber,
+    slug: course?.slug,
+    title: course?.title,
+  })
+  const topicLanguage = inferCourseLanguage({
+    id: matchedLocalCourse?.id ?? courseIdNumber,
+    slug: matchedLocalCourse?.slug ?? course?.slug,
+    title: matchedLocalCourse?.title ?? course?.title,
+  })
   const storageLessons =
     lessons.length > 0
       ? lessons
-      : courseData.find((item) => item.id === courseIdNumber)?.lessons || []
+      : matchedLocalCourse?.lessons || []
 
   useEffect(() => {
     if (!courseIdNumber || storageLessons.length === 0) {

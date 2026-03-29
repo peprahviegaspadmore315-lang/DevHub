@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { coursesApi } from '@/services/api'
+import { buildFallbackCourses } from '@/lib/course-catalog-fallback'
 import { useSidebarStore } from '@/store'
 import { courseData } from '@/data/courseData'
 import type { Course } from '@/types'
@@ -23,7 +24,10 @@ const Sidebar = () => {
   }, [isOnCssCourse, isOnHtmlCourse, setSidebarOpen])
 
   useEffect(() => {
-    coursesApi.getAll().then((res) => setCourses(res.data))
+    coursesApi
+      .getAll()
+      .then((res) => setCourses(res.data.length > 0 ? res.data : buildFallbackCourses()))
+      .catch(() => setCourses(buildFallbackCourses()))
   }, [])
 
 return (
