@@ -2,6 +2,8 @@ server:
   port: 8080
 
 spring:
+  config:
+    import: optional:configtree:/etc/secrets/
   application:
     name: learning-platform
 
@@ -14,8 +16,11 @@ spring:
       mail:
         smtp:
           auth: true
+          connectiontimeout: ${MAIL_CONNECTION_TIMEOUT:10000}
+          timeout: ${MAIL_TIMEOUT:10000}
           starttls:
             enable: true
+          writetimeout: ${MAIL_WRITE_TIMEOUT:10000}
 
   datasource:
     url: jdbc:h2:mem:testdb
