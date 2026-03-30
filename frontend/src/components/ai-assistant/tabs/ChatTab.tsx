@@ -28,6 +28,7 @@ import {
 import {
   getApiUrl,
   isBackendConnectionError,
+  parseJsonResponse,
   reportBackendFallbackOnce,
 } from '@/services/api-client'
 import { useAuthStore } from '@/store'
@@ -609,7 +610,7 @@ const ChatTab: React.FC = () => {
         throw new Error(`AI status request failed with status ${response.status}`)
       }
 
-      const data = await response.json()
+      const data = await parseJsonResponse<AIChatStatus>(response)
 
       setAiStatus({
         configured: Boolean(data.configured),
@@ -1371,7 +1372,19 @@ const ChatTab: React.FC = () => {
         )
       }
 
-      let data = await response.json()
+      let data = await parseJsonResponse<{
+        configured?: boolean
+        enabled?: boolean
+        generatedImageUrl?: string
+        live?: boolean
+        message?: string
+        provider?: string
+        providerLabel?: string
+        reply?: string
+        source?: string
+        sourceLabel?: string
+        statusMessage?: string
+      }>(response)
 
       if (
         hasImageAttachment &&
@@ -1381,7 +1394,10 @@ const ChatTab: React.FC = () => {
         const retryResponse = await sendChatRequest(buildVisionOnlyPrompt(userVisibleMessage), true)
 
         if (retryResponse.ok) {
-          const retryData = await retryResponse.json()
+          const retryData = await parseJsonResponse<{
+            generatedImageUrl?: string
+            reply?: string
+          }>(retryResponse)
           if (
             typeof retryData.reply === 'string' &&
             retryData.reply.trim() &&

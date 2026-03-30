@@ -33,7 +33,26 @@ export async function apiRequest<T>(
     throw new Error(error.message || `HTTP ${response.status}`);
   }
 
-  return response.json();
+  return parseJsonResponse<T>(response);
+}
+
+export async function parseJsonResponse<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get('content-type') || '';
+  const rawBody = await response.text();
+
+  if (!rawBody.trim()) {
+    throw new Error('Expected a JSON response but received an empty body.');
+  }
+
+  try {
+    return JSON.parse(rawBody) as T;
+  } catch {
+    const preview = rawBody.trim().slice(0, 120).replace(/\s+/g, ' ');
+    const normalizedType = contentType || 'unknown content type';
+    throw new Error(
+      `Expected JSON but received ${normalizedType}: ${preview}`
+    );
+  }
 }
 
 export function isBackendConnectionError(error: unknown): boolean {
