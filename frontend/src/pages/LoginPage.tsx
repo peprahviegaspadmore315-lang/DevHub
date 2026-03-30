@@ -221,11 +221,13 @@ const LoginPageComponent = () => {
     const [resetCodeExpiresAt, setResetCodeExpiresAt] = useState<string | null>(null);
     const [resetResendCooldown, setResetResendCooldown] = useState(0);
     const [lastDeviceAccount, setLastDeviceAccount] = useState<SavedSocialShortcut | null>(() => loadLastDeviceAccount());
-    const [savedSocialShortcuts, setSavedSocialShortcuts] = useState(() => ({
+  const [savedSocialShortcuts, setSavedSocialShortcuts] = useState(() => ({
       google: loadSavedSocialShortcut('google'),
       github: loadSavedSocialShortcut('github'),
     }));
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const loginEmailInputRef = useRef<HTMLInputElement | null>(null);
+  const loginPasswordInputRef = useRef<HTMLInputElement | null>(null);
 
   const locationState = (location.state as {
     from?: { pathname?: string };
@@ -257,6 +259,61 @@ const LoginPageComponent = () => {
       setFormMode(locationState.presetMode);
     }
   }, [locationState?.presetEmail, locationState?.presetMode]);
+
+  useEffect(() => {
+    if (rememberMe) {
+      return;
+    }
+
+    localStorage.removeItem(REMEMBERED_EMAIL_STORAGE_KEY);
+  }, [rememberMe]);
+
+  useEffect(() => {
+    if (formMode !== 'login') {
+      return;
+    }
+
+    const savedEmail = localStorage.getItem(REMEMBERED_EMAIL_STORAGE_KEY)?.trim();
+    if (savedEmail) {
+      return;
+    }
+
+    const clearAutofill = () => {
+      const emailInput = loginEmailInputRef.current;
+      const passwordInput = loginPasswordInputRef.current;
+      const hasRenderedAutofill = Boolean(emailInput?.value || passwordInput?.value);
+
+      if (!hasRenderedAutofill) {
+        return;
+      }
+
+      if (emailInput) {
+        emailInput.value = '';
+      }
+
+      if (passwordInput) {
+        passwordInput.value = '';
+      }
+
+      setFormData((previous) => {
+        if (!previous.email && !previous.password) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          email: '',
+          password: '',
+        };
+      });
+    };
+
+    const timers = [80, 240].map((delay) => window.setTimeout(clearAutofill, delay));
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [formMode, rememberMe]);
 
   useEffect(() => {
     if (inputActivityLevel > 0) {
@@ -998,19 +1055,30 @@ const LoginPageComponent = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="on">
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-5"
+              autoComplete={formMode === 'register' ? 'on' : 'off'}
+            >
+              {formMode === 'login' ? (
+                <div className="hidden" aria-hidden="true">
+                  <input type="text" name="username" autoComplete="username" tabIndex={-1} />
+                  <input type="password" name="password" autoComplete="current-password" tabIndex={-1} />
+                </div>
+              ) : null}
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Email Address <span className="text-red-500">*</span>
                 </label>
                 <input
+                  ref={formMode === 'login' ? loginEmailInputRef : undefined}
                   type="email"
-                  name="email"
+                  name={formMode === 'login' ? 'devhub-login-email' : 'email'}
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   onFocus={handleInputFocus}
-                  autoComplete="email"
+                  autoComplete={formMode === 'register' ? 'email' : 'off'}
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
@@ -1269,13 +1337,14 @@ const LoginPageComponent = () => {
                     <PasswordInput
                       label="Password *"
                       name={formMode === 'login' ? 'devhub-login-password' : 'devhub-register-password'}
+                      ref={formMode === 'login' ? loginPasswordInputRef : undefined}
                       value={formData.password}
                       onChange={(value) => handleInputChange('password', value)}
                       onFocus={handleInputFocus}
                       error={errors.password}
                       placeholder="••••••••"
                       required
-                      autoComplete={formMode === 'login' ? 'current-password' : 'new-password'}
+                      autoComplete={formMode === 'login' ? 'off' : 'new-password'}
                       showStrength={formMode === 'register'}
                       strengthTitle="DevHub password check:"
                       variant="auth-dark"
