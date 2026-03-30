@@ -26,6 +26,7 @@ import {
   type AIAssistantLearningContext,
 } from '@/contexts/AIAssistantContext'
 import {
+  fetchWithTimeout,
   getApiUrl,
   isBackendConnectionError,
   parseJsonResponse,
@@ -82,6 +83,7 @@ const clampScale = (value: number) =>
   Math.min(1.7, Math.max(0.9, Number(value.toFixed(2))))
 
 const MAX_VOICE_RECORDING_MS = 30000
+const AI_CHAT_REQUEST_TIMEOUT_MS = 45000
 const FALLBACK_VOICE_RECORDING_FILE_NAME = 'voice-input.webm'
 const preferredVoiceRecordingMimeTypes = [
   'audio/webm;codecs=opus',
@@ -1329,7 +1331,7 @@ const ChatTab: React.FC = () => {
 
     try {
       const sendChatRequest = async (payloadMessage: string, visionRetry = false) =>
-        fetch(getApiUrl('/api/ai/chat'), {
+        fetchWithTimeout(getApiUrl('/api/ai/chat'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1361,7 +1363,7 @@ const ChatTab: React.FC = () => {
             },
             userId: user?.id ?? null,
           }),
-        })
+        }, AI_CHAT_REQUEST_TIMEOUT_MS)
 
       const response = await sendChatRequest(requestMessage)
 
@@ -1476,6 +1478,11 @@ const ChatTab: React.FC = () => {
         },
       ])
     } catch (error) {
+      const timeoutMessage =
+        error instanceof Error && error.message.toLowerCase().includes('timed out')
+          ? 'DevHub AI took too long to respond, so DevHub used the local fallback for this reply.'
+          : null
+
       if (isBackendConnectionError(error)) {
         reportBackendFallbackOnce(
           'ai-chat-offline',
@@ -1487,7 +1494,8 @@ const ChatTab: React.FC = () => {
       }
       void loadStatus()
       showToast(
-        aiStatus?.message ||
+        timeoutMessage ||
+          aiStatus?.message ||
           (learningContext
             ? `Live AI is unavailable, so DevHub used the current ${learningContext.topicTitle ? 'topic' : 'lesson'} context instead.`
             : 'Live AI is unavailable right now, so DevHub is falling back to local guidance until the DevHub AI backend reconnects.'),
@@ -1509,6 +1517,7 @@ const ChatTab: React.FC = () => {
           role: 'assistant',
           sourceLabel: 'Local DevHub fallback',
           statusMessage:
+            timeoutMessage ||
             aiStatus?.message ||
             'The live AI backend is unavailable, so this answer came from the local fallback.',
         },

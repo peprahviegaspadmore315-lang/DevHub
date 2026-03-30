@@ -2,6 +2,11 @@ import { useAuthStore } from '@/store';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
 const reportedFallbackWarnings = new Set<string>();
+const DEFAULT_REQUEST_TIMEOUT_MS = 45000;
+
+type TimeoutCapableError = Error & {
+  code?: string;
+};
 
 export function getApiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
@@ -55,6 +60,34 @@ export async function parseJsonResponse<T>(response: Response): Promise<T> {
   }
 }
 
+export async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      const timeoutError: TimeoutCapableError = new Error(
+        `Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`
+      );
+      timeoutError.code = 'ERR_TIMEOUT';
+      throw timeoutError;
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 export function isBackendConnectionError(error: unknown): boolean {
   if (!error || typeof error !== 'object') {
     return false;
@@ -69,7 +102,9 @@ export function isBackendConnectionError(error: unknown): boolean {
 
   return (
     candidate.code === 'ERR_NETWORK' ||
+    candidate.code === 'ERR_TIMEOUT' ||
     message.includes('network error') ||
+    message.includes('timed out') ||
     message.includes('failed to fetch') ||
     message.includes('err_connection_refused')
   );

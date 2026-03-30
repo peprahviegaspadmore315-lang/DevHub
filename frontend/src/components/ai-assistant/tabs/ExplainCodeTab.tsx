@@ -22,7 +22,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 import { useAIAssistant, type AIAssistantLearningContext } from '@/contexts/AIAssistantContext'
-import { getApiUrl } from '@/services/api-client'
+import { fetchWithTimeout, getApiUrl } from '@/services/api-client'
 
 import '../AIAssistant.css'
 
@@ -273,6 +273,8 @@ const buildExplainFallbackPrompt = ({
   ].join('\n')
 }
 
+const EXPLAIN_REQUEST_TIMEOUT_MS = 45000
+
 const getSpeechSupportMessage = () => {
   if (
     typeof window === 'undefined' ||
@@ -404,14 +406,14 @@ const ExplainCodeTab = () => {
     try {
       let nextExplanation = ''
 
-      const response = await fetch(getApiUrl('/api/ai/explain-code'), {
+      const response = await fetchWithTimeout(getApiUrl('/api/ai/explain-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: normalizedCode,
           language: selectedLanguage || null,
         }),
-      })
+      }, EXPLAIN_REQUEST_TIMEOUT_MS)
 
       if (response.ok) {
         const data = await response.json()
@@ -422,7 +424,7 @@ const ExplainCodeTab = () => {
       if (!nextExplanation) {
         console.warn('Dedicated explain-code endpoint unavailable, falling back to AI chat.')
 
-        const fallbackResponse = await fetch(getApiUrl('/api/ai/chat'), {
+        const fallbackResponse = await fetchWithTimeout(getApiUrl('/api/ai/chat'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -439,7 +441,7 @@ const ExplainCodeTab = () => {
               codeExample: normalizedCode,
             },
           }),
-        })
+        }, EXPLAIN_REQUEST_TIMEOUT_MS)
 
         if (!fallbackResponse.ok) {
           throw new Error('Failed to explain code')
@@ -468,7 +470,9 @@ const ExplainCodeTab = () => {
       console.error(error)
       setExplanation('')
       setErrorMessage(
-        'DevHub could not explain that code right now. Try again, or shorten the snippet and retry.'
+        error instanceof Error && error.message.toLowerCase().includes('timed out')
+          ? 'DevHub AI took too long to explain that code. Try again or shorten the snippet.'
+          : 'DevHub could not explain that code right now. Try again, or shorten the snippet and retry.'
       )
     } finally {
       setIsLoading(false)
