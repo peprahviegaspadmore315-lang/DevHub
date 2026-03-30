@@ -13,6 +13,7 @@ import com.learningplatform.repository.RefreshTokenRepository;
 import com.learningplatform.repository.UserRepository;
 import com.learningplatform.security.JwtTokenProvider;
 import com.learningplatform.service.AuthService;
+import com.learningplatform.config.MailSettingsResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +49,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final JavaMailSender mailSender;
+    private final MailSettingsResolver mailSettingsResolver;
     @Qualifier("taskExecutor")
     private final Executor taskExecutor;
     
@@ -66,12 +68,6 @@ public class AuthServiceImpl implements AuthService {
     @Value("${app.auth.password-reset-code-length:6}")
     private Integer passwordResetCodeLength;
 
-    @Value("${spring.mail.username:}")
-    private String mailUsername;
-
-    @Value("${app.mail.from:${spring.mail.username:}}")
-    private String mailFrom;
-    
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -267,7 +263,7 @@ public class AuthServiceImpl implements AuthService {
 
         resetToken = passwordResetTokenRepository.save(resetToken);
 
-        if (!isMailConfigured()) {
+        if (!mailSettingsResolver.isMailConfigured()) {
             logger.warn("Mail is not configured. Returning password reset preview code for {}", normalizedEmail);
             return PasswordResetInitiateResponse.builder()
                     .success(true)
@@ -441,10 +437,6 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-    private boolean isMailConfigured() {
-        return normalizeOptional(mailUsername) != null && normalizeOptional(mailFrom) != null;
-    }
-
     private String generateResetCode() {
         int digits = Math.max(4, Math.min(8, passwordResetCodeLength == null ? 6 : passwordResetCodeLength));
         int bound = (int) Math.pow(10, digits);
@@ -485,7 +477,7 @@ public class AuthServiceImpl implements AuthService {
     private void sendResetCodeEmail(String email, String code, LocalDateTime expiresAt) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(email);
-        message.setFrom(mailFrom);
+        message.setFrom(mailSettingsResolver.resolveFromAddress());
         message.setSubject("Your DevHub password reset code");
         message.setText("""
                 Hi,

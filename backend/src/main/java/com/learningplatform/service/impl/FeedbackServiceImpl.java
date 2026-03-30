@@ -1,5 +1,6 @@
 package com.learningplatform.service.impl;
 
+import com.learningplatform.config.MailSettingsResolver;
 import com.learningplatform.exception.BadRequestException;
 import com.learningplatform.model.dto.FeedbackRequest;
 import com.learningplatform.model.dto.FeedbackResponse;
@@ -8,7 +9,6 @@ import com.learningplatform.service.FeedbackService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -23,18 +23,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     private static final Logger logger = LoggerFactory.getLogger(FeedbackServiceImpl.class);
 
     private final JavaMailSender mailSender;
-
-    @Value("${spring.mail.username:}")
-    private String mailUsername;
-
-    @Value("${spring.mail.password:}")
-    private String mailPassword;
-
-    @Value("${app.mail.from:${spring.mail.username:}}")
-    private String mailFrom;
-
-    @Value("${app.feedback.recipient:}")
-    private String feedbackRecipient;
+    private final MailSettingsResolver mailSettingsResolver;
 
     @Override
     public FeedbackResponse sendFeedback(User user, FeedbackRequest request) {
@@ -119,11 +108,11 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     private boolean isMailConfigured() {
-        return !isBlank(mailUsername) && !isBlank(mailPassword) && !isBlank(resolveSenderAddress());
+        return mailSettingsResolver.isMailConfigured();
     }
 
     private String resolveRecipient() {
-        String recipient = normalize(feedbackRecipient);
+        String recipient = normalize(mailSettingsResolver.resolveFeedbackRecipient());
 
         if (!isBlank(recipient)) {
             return recipient;
@@ -139,11 +128,11 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     private String resolveSenderAddress() {
-        String sender = normalize(mailFrom);
+        String sender = normalize(mailSettingsResolver.resolveFromAddress());
         if (!isBlank(sender)) {
             return sender;
         }
-        return normalize(mailUsername);
+        return normalize(mailSettingsResolver.resolveUsername());
     }
 
     private String normalize(String value) {
