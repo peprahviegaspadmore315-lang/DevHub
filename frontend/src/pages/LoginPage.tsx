@@ -998,23 +998,7 @@ const LoginPageComponent = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
-              <input
-                type="text"
-                name="devhub-decoy-username"
-                autoComplete="username"
-                tabIndex={-1}
-                aria-hidden="true"
-                className="hidden"
-              />
-              <input
-                type="password"
-                name="devhub-decoy-password"
-                autoComplete="current-password"
-                tabIndex={-1}
-                aria-hidden="true"
-                className="hidden"
-              />
+            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="on">
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1022,11 +1006,11 @@ const LoginPageComponent = () => {
                 </label>
                 <input
                   type="email"
-                  name="devhub-auth-email"
+                  name="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   onFocus={handleInputFocus}
-                  autoComplete="off"
+                  autoComplete="email"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
@@ -1132,10 +1116,13 @@ const LoginPageComponent = () => {
                     </label>
                     <input
                       type="text"
-                      name="devhub-register-username"
+                      name="username"
                       value={formData.username}
                       onChange={(e) => handleInputChange('username', e.target.value)}
-                      autoComplete="off"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       className={`w-full px-4 py-3 bg-[#0a0a10]/80 border rounded-lg text-white placeholder-gray-500 focus:outline-none transition-all duration-300 ${
                         errors.username 
                           ? 'border-red-500 focus:ring-2 focus:ring-red-500/30' 
@@ -1151,10 +1138,11 @@ const LoginPageComponent = () => {
                       <label className="block text-sm font-medium text-gray-300 mb-2">First Name</label>
                       <input
                         type="text"
-                        name="devhub-register-first-name"
+                        name="given-name"
                         value={formData.firstName}
                         onChange={(e) => handleInputChange('firstName', e.target.value)}
-                        autoComplete="off"
+                        autoComplete="given-name"
+                        autoCapitalize="words"
                         className="w-full px-4 py-3 bg-[#0a0a10]/80 border border-cyan-500/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-300"
                         placeholder="Peprah"
                       />
@@ -1163,10 +1151,11 @@ const LoginPageComponent = () => {
                       <label className="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
                       <input
                         type="text"
-                        name="devhub-register-last-name"
+                        name="family-name"
                         value={formData.lastName}
                         onChange={(e) => handleInputChange('lastName', e.target.value)}
-                        autoComplete="off"
+                        autoComplete="family-name"
+                        autoCapitalize="words"
                         className="w-full px-4 py-3 bg-[#0a0a10]/80 border border-cyan-500/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-300"
                         placeholder="Padmore"
                       />
@@ -1286,7 +1275,7 @@ const LoginPageComponent = () => {
                       error={errors.password}
                       placeholder="••••••••"
                       required
-                      autoComplete="new-password"
+                      autoComplete={formMode === 'login' ? 'current-password' : 'new-password'}
                       showStrength={formMode === 'register'}
                       strengthTitle="DevHub password check:"
                       variant="auth-dark"
