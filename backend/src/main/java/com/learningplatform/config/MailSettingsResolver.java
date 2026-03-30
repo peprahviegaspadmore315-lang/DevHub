@@ -52,11 +52,11 @@ public class MailSettingsResolver {
     }
 
     public String resolvePassword() {
-        return firstNonBlank(
+        return normalizePassword(firstNonBlank(
                 environment.getProperty("MAIL_PASSWORD"),
                 environment.getProperty("spring.mail.password"),
                 readSecret("MAIL_PASSWORD")
-        );
+        ));
     }
 
     public String resolveFromAddress() {
@@ -155,6 +155,24 @@ public class MailSettingsResolver {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizePassword(String value) {
+        String normalized = normalize(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        if (!normalized.contains(" ")) {
+            return normalized;
+        }
+
+        String compact = normalized.replaceAll("\\s+", "");
+        if (compact.length() == 16 && compact.matches("[A-Za-z0-9]+")) {
+            return compact;
+        }
+
+        return normalized;
     }
 
     private boolean isBlank(String value) {

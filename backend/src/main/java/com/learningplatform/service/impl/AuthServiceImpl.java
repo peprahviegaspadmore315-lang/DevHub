@@ -15,7 +15,6 @@ import com.learningplatform.security.JwtTokenProvider;
 import com.learningplatform.service.AuthService;
 import com.learningplatform.config.MailSettingsResolver;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,8 +23,6 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +31,6 @@ import java.time.temporal.ChronoUnit;
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.UUID;
-import java.util.concurrent.Executor;
 
 @Service
 @RequiredArgsConstructor
@@ -50,8 +46,6 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final JavaMailSender mailSender;
     private final MailSettingsResolver mailSettingsResolver;
-    @Qualifier("taskExecutor")
-    private final Executor taskExecutor;
     
     @Value("${app.jwt.access-token-expiration}")
     private Long accessTokenExpiration;
@@ -239,7 +233,6 @@ public class AuthServiceImpl implements AuthService {
     }
     
     @Override
-    @Transactional
     public PasswordResetInitiateResponse sendPasswordResetEmail(String email, String requestOrigin) {
         String normalizedEmail = normalizeRequired(email);
         User user = normalizedEmail == null ? null : userRepository.findByEmail(normalizedEmail).orElse(null);
@@ -261,7 +254,7 @@ public class AuthServiceImpl implements AuthService {
                 .expiresAt(LocalDateTime.now().plusMinutes(passwordResetTokenExpirationMinutes))
                 .build();
 
-        resetToken = passwordResetTokenRepository.save(resetToken);
+        resetToken = passwordResetTokenRepository.saveAndFlush(resetToken);
 
         if (!mailSettingsResolver.isMailConfigured()) {
             logger.warn("Mail is not configured. Returning password reset preview code for {}", normalizedEmail);
@@ -276,17 +269,17 @@ public class AuthServiceImpl implements AuthService {
         }
 
         try {
-            queueResetCodeEmail(user.getEmail(), resetToken.getToken(), resetToken.getExpiresAt());
-            logger.info("Password reset code generated and queued for email delivery for {}", normalizedEmail);
+            sendResetCodeEmail(user.getEmail(), resetToken.getToken(), resetToken.getExpiresAt());
+            logger.info("Password reset code generated and emailed for {}", normalizedEmail);
             return PasswordResetInitiateResponse.builder()
                     .success(true)
                     .codeSent(true)
                     .preview(false)
-                    .message("Recovery email is on the way. If it does not arrive within a minute, tap resend.")
+                    .message("Recovery email has been sent. Check the inbox for that account now.")
                     .expiresAt(resetToken.getExpiresAt().truncatedTo(ChronoUnit.SECONDS))
                     .build();
-        } catch (RuntimeException error) {
-            logger.error("Failed to queue password reset email to {}. Returning preview code instead.", normalizedEmail, error);
+        } catch (MailException error) {
+            logger.error("Failed to send password reset email to {}. Returning preview code instead.", normalizedEmail, error);
             return PasswordResetInitiateResponse.builder()
                     .success(true)
                     .codeSent(true)
@@ -449,29 +442,6 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return UUID.randomUUID().toString().replaceAll("\\D", "").substring(0, digits);
-    }
-
-    private void queueResetCodeEmail(String email, String code, LocalDateTime expiresAt) {
-        Runnable emailTask = () -> {
-            try {
-                sendResetCodeEmail(email, code, expiresAt);
-                logger.info("Password reset code emailed to {}", email);
-            } catch (MailException error) {
-                logger.error("Failed to send password reset email to {}", email, error);
-            }
-        };
-
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    taskExecutor.execute(emailTask);
-                }
-            });
-            return;
-        }
-
-        taskExecutor.execute(emailTask);
     }
 
     private void sendResetCodeEmail(String email, String code, LocalDateTime expiresAt) {
