@@ -233,6 +233,7 @@ public class AuthServiceImpl implements AuthService {
     }
     
     @Override
+    @Transactional
     public PasswordResetInitiateResponse sendPasswordResetEmail(String email, String requestOrigin) {
         String normalizedEmail = normalizeRequired(email);
         User user = normalizedEmail == null ? null : userRepository.findByEmail(normalizedEmail).orElse(null);
