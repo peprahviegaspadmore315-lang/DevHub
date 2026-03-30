@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/store';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+const reportedFallbackWarnings = new Set<string>();
 
 export function getApiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
@@ -33,6 +34,45 @@ export async function apiRequest<T>(
   }
 
   return response.json();
+}
+
+export function isBackendConnectionError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as {
+    code?: string;
+    message?: string;
+  };
+
+  const message = (candidate.message || '').toLowerCase();
+
+  return (
+    candidate.code === 'ERR_NETWORK' ||
+    message.includes('network error') ||
+    message.includes('failed to fetch') ||
+    message.includes('err_connection_refused')
+  );
+}
+
+export function reportBackendFallbackOnce(
+  key: string,
+  message: string,
+  error?: unknown
+): void {
+  if (!import.meta.env.DEV || reportedFallbackWarnings.has(key)) {
+    return;
+  }
+
+  reportedFallbackWarnings.add(key);
+
+  if (isBackendConnectionError(error)) {
+    console.warn(message);
+    return;
+  }
+
+  console.warn(message, error);
 }
 
 export { API_BASE_URL };

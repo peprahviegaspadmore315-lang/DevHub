@@ -25,7 +25,11 @@ import {
   useAIAssistant,
   type AIAssistantLearningContext,
 } from '@/contexts/AIAssistantContext'
-import { getApiUrl } from '@/services/api-client'
+import {
+  getApiUrl,
+  isBackendConnectionError,
+  reportBackendFallbackOnce,
+} from '@/services/api-client'
 import { useAuthStore } from '@/store'
 
 import '../AIAssistant.css'
@@ -595,6 +599,7 @@ const ChatTab: React.FC = () => {
     : learningContext
       ? `Grounded in ${focusTitle}${learningContext.courseTitle ? ` from ${learningContext.courseTitle}` : ''}, with a local DevHub fallback whenever live AI is not connected.`
       : 'Ask general questions, get programming help, debug code, explore examples, or connect answers back to the lesson you are viewing.'
+  const statusPollIntervalMs = aiStatus?.live ? 15000 : 45000
 
   const loadStatus = useCallback(async () => {
     try {
@@ -628,7 +633,11 @@ const ChatTab: React.FC = () => {
             : undefined,
       })
     } catch (error) {
-      console.error('AI status error:', error)
+      reportBackendFallbackOnce(
+        'ai-status-offline',
+        'Live AI backend unavailable. DevHub will keep using the local assistant fallback until the backend responds.',
+        error
+      )
       setAiStatus((previous) => {
         if (previous?.live || previous?.configured || previous?.enabled) {
           return {
@@ -664,7 +673,7 @@ const ChatTab: React.FC = () => {
 
     const intervalId = window.setInterval(() => {
       void loadStatus()
-    }, 15000)
+    }, statusPollIntervalMs)
 
     const handleFocus = () => {
       void loadStatus()
@@ -684,7 +693,7 @@ const ChatTab: React.FC = () => {
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [loadStatus])
+  }, [loadStatus, statusPollIntervalMs])
 
   useEffect(() => {
     if (!aiStatus) {
@@ -1451,7 +1460,15 @@ const ChatTab: React.FC = () => {
         },
       ])
     } catch (error) {
-      console.error('AI chat error:', error)
+      if (isBackendConnectionError(error)) {
+        reportBackendFallbackOnce(
+          'ai-chat-offline',
+          'Live AI backend unavailable while sending chat. DevHub is answering locally instead.',
+          error
+        )
+      } else {
+        console.error('AI chat error:', error)
+      }
       void loadStatus()
       showToast(
         aiStatus?.message ||

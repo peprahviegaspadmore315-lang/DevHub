@@ -5,6 +5,7 @@ import DevHubWordmark from '@/components/ui/devhub-wordmark'
 import HeroSection from '@/components/ui/hero-section-9'
 import { buildFallbackCourses, buildFallbackPlatformSummary } from '@/lib/course-catalog-fallback'
 import { coursesApi } from '@/services/api'
+import { reportBackendFallbackOnce } from '@/services/api-client'
 import type { Course, PlatformSummary } from '@/types'
 
 const HomePage = () => {
@@ -24,14 +25,22 @@ const HomePage = () => {
       if (coursesRes.status === 'fulfilled') {
         setAllCourses(coursesRes.value.data.length > 0 ? coursesRes.value.data : fallbackCourses)
       } else {
-        console.error('Failed to fetch courses:', coursesRes.reason)
+        reportBackendFallbackOnce(
+          'home-courses-fallback',
+          'Backend unavailable while loading courses. DevHub is using the local course catalog fallback.',
+          coursesRes.reason
+        )
         setAllCourses(fallbackCourses)
       }
 
       if (summaryRes.status === 'fulfilled') {
         setPlatformSummary(summaryRes.value.data)
       } else {
-        console.error('Failed to fetch platform summary:', summaryRes.reason)
+        reportBackendFallbackOnce(
+          'home-summary-fallback',
+          'Backend unavailable while loading the platform summary. DevHub is using local summary stats.',
+          summaryRes.reason
+        )
         setPlatformSummary(fallbackSummary)
       }
     }

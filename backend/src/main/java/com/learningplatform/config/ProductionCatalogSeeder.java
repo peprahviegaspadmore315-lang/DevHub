@@ -11,6 +11,7 @@ import com.learningplatform.repository.TopicCodeExampleRepository;
 import com.learningplatform.repository.TopicRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Component
+@ConditionalOnProperty(prefix = "app.catalog", name = "seed-on-startup", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 @Slf4j
 public class ProductionCatalogSeeder implements ApplicationRunner {
@@ -32,8 +34,13 @@ public class ProductionCatalogSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        seedCourses();
-        seedTopics();
+        try {
+            seedCourses();
+            seedTopics();
+            log.info("Production catalog seeding completed successfully.");
+        } catch (Exception error) {
+            log.error("Production catalog seeding failed. The app will continue running without startup seeding.", error);
+        }
     }
 
     private void seedCourses() {

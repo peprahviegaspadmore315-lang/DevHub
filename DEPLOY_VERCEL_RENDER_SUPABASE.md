@@ -14,7 +14,8 @@ This project is prepared for:
 
 Recommended for Render:
 
-- Use the Supavisor `session mode` or another IPv4-friendly pooled connection if direct IPv6 is unavailable from your Render region.
+- Use the Supavisor `session mode` connection on port `5432`, or another IPv4-friendly pooled connection if direct IPv6 is unavailable from your Render region.
+- Avoid Supavisor `transaction mode` on port `6543` unless you really need it. This app now adds JDBC compatibility flags for that mode, but `session mode` is still the safer choice for a long-lived Spring Boot service.
 
 Set these backend environment variables from that connection:
 
@@ -22,9 +23,13 @@ Set these backend environment variables from that connection:
 - `DB_USERNAME`
 - `DB_PASSWORD`
 
-`DB_URL` must stay in JDBC format, for example:
+When you use a Supavisor pooler URL, `DB_USERNAME` is usually the full pooled username from Supabase, such as `postgres.your_project_ref`, not plain `postgres`.
 
-`jdbc:postgresql://aws-0-xxx.pooler.supabase.com:5432/postgres`
+`DB_URL` can be either a JDBC URL or a raw Postgres URL. The backend will normalize it in production. For Supabase, include or allow the app to add `sslmode=require`.
+
+Recommended example:
+
+`jdbc:postgresql://aws-0-xxx.pooler.supabase.com:5432/postgres?sslmode=require`
 
 ## 2. Render backend
 
@@ -50,6 +55,12 @@ The backend is in [backend](./backend) and Render can build it from the existing
 - `CORS_ALLOWED_ORIGINS=https://your-vercel-domain.vercel.app`
 - `FRONTEND_BASE_URL=https://your-vercel-domain.vercel.app`
 
+The production backend also accepts:
+
+- `JDBC_DATABASE_URL`
+- `DATABASE_URL`
+- `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`
+
 ### Optional but recommended
 
 - `MAIL_HOST=smtp.gmail.com`
@@ -62,6 +73,9 @@ The backend is in [backend](./backend) and Render can build it from the existing
 - `AI_PROVIDER=gemini`
 - `GEMINI_API_KEY=your-key`
 - `OPENAI_API_KEY=your-key`
+- `CATALOG_SEED_ON_STARTUP=false`
+
+`CATALOG_SEED_ON_STARTUP=false` is the safest production default while you stabilize a first deploy. You can turn it on later if you want the backend to auto-seed starter catalog content during startup.
 
 ## 3. Vercel frontend
 
