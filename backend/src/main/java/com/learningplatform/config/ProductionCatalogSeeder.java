@@ -15,7 +15,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -32,7 +31,6 @@ public class ProductionCatalogSeeder implements ApplicationRunner {
     private final TopicCodeExampleRepository topicCodeExampleRepository;
 
     @Override
-    @Transactional
     public void run(ApplicationArguments args) {
         try {
             seedCourses();
