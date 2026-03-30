@@ -1043,12 +1043,12 @@ const LoginPageComponent = () => {
                         title="Enter Recovery Code"
                         description={
                           resetPreviewCode
-                            ? `DevHub generated a local recovery code for ${formData.email}. Enter it below to verify this request.`
+                            ? `DevHub prepared a one-time recovery code for ${formData.email} because email delivery is unavailable right now. Enter it below to verify this request.`
                             : `We sent a secure reset code to ${formData.email}. Enter it below to verify this request.`
                         }
                         hint={
                           resetPreviewCode
-                            ? 'Use the preview code shown below for this local session. If you resend, only the newest code will work.'
+                            ? 'Use the one-time code shown below for this session. If you resend, only the newest code will work.'
                             : resetCodeExpiresAt
                             ? `This code expires at ${new Date(resetCodeExpiresAt).toLocaleString()}. If you resend, only the newest code from your email will work.`
                             : 'Enter the newest code from your Gmail inbox to verify the reset request.'
@@ -1072,7 +1072,7 @@ const LoginPageComponent = () => {
                             Local Recovery Code
                           </p>
                           <p className="mt-2 leading-6 text-amber-50">
-                            Email sending is not configured on this local setup yet, so use this recovery code for now.
+                            Email delivery is not configured on this server yet, so use this recovery code for now.
                           </p>
                           <div className="mt-3 inline-flex rounded-xl border border-amber-300/25 bg-black/20 px-3 py-2 text-lg font-semibold tracking-[0.35em] text-amber-100">
                             {resetPreviewCode}

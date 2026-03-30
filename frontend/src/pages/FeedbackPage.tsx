@@ -273,9 +273,9 @@ export default function FeedbackPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Signed-in account</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Signed-in DevHub account</label>
                 <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700">
-                  {user?.email || 'No account detected'}
+                  {user?.email || 'Sign in to attach your account email'}
                 </div>
               </div>
             </div>
@@ -374,7 +374,7 @@ export default function FeedbackPage() {
                 <p className="mt-2 text-lg font-semibold text-white">
                   {user?.firstName || user?.username || 'DevHub user'}
                 </p>
-                <p className="mt-1 text-sm text-slate-300">{user?.email || 'No signed-in account detected'}</p>
+                <p className="mt-1 text-sm text-slate-300">{user?.email || 'Sign in to attach your account email'}</p>
               </div>
 
               {lastSentAt ? (

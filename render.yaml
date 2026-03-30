@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: devhub-backend
+    name: devhub-backend-api
     runtime: docker
     plan: free
     dockerfilePath: ./backend/Dockerfile
@@ -20,6 +20,14 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         sync: false
       - key: FRONTEND_BASE_URL
+        sync: false
+      - key: FEEDBACK_RECIPIENT
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
         sync: false
       - key: CATALOG_SEED_ON_STARTUP
         value: "false"

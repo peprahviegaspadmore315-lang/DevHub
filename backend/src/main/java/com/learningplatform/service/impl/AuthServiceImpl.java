@@ -268,7 +268,7 @@ public class AuthServiceImpl implements AuthService {
                     .codeSent(true)
                     .preview(true)
                     .previewCode(resetToken.getToken())
-                    .message("Email sender is not configured yet, so DevHub generated a local recovery code preview for this session.")
+                    .message("Email delivery is not configured on this server yet, so DevHub generated a one-time recovery code preview for this session.")
                     .expiresAt(resetToken.getExpiresAt().truncatedTo(ChronoUnit.SECONDS))
                     .build();
         }
@@ -291,7 +291,7 @@ public class AuthServiceImpl implements AuthService {
                     .codeSent(true)
                     .preview(true)
                     .previewCode(resetToken.getToken())
-                    .message("DevHub could not deliver the recovery email, so a local recovery code preview is ready for this session.")
+                    .message("DevHub could not deliver the recovery email, so a one-time recovery code preview is ready for this session.")
                     .expiresAt(resetToken.getExpiresAt().truncatedTo(ChronoUnit.SECONDS))
                     .build();
         }
